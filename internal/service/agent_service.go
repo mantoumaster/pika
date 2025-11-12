@@ -554,8 +554,8 @@ func (s *AgentService) StartCleanupTask(ctx context.Context) {
 
 // cleanupOldMetrics 清理旧数据
 func (s *AgentService) cleanupOldMetrics(ctx context.Context) {
-	// 删除30天前的数据
-	before := time.Now().AddDate(0, 0, -30).UnixMilli()
+	// 删除7天前的数据
+	before := time.Now().AddDate(0, 0, -7).UnixMilli()
 
 	s.logger.Info("starting to clean old metrics", zap.Int64("beforeTimestamp", before))
 

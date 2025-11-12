@@ -79,7 +79,6 @@ const timeRangeOptions = [
     {label: '24小时', value: '24h'},
     {label: '3天', value: '3d'},
     {label: '7天', value: '7d'},
-    {label: '30天', value: '30d'},
 ] as const;
 
 const LoadingSpinner = () => (
@@ -173,8 +172,8 @@ const TimeRangeSelector = ({
                                value,
                                onChange,
                            }: {
-    value: '1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d' | '1w' | '30d' | '1M' | '90d' | '3M';
-    onChange: (value: '1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d' | '1w' | '30d' | '1M' | '90d' | '3M') => void;
+    value: '1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d';
+    onChange: (value: '1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d') => void;
 }) => (
     <div className="flex flex-wrap items-center gap-2">
         {timeRangeOptions.map((option) => {
@@ -247,7 +246,7 @@ const ServerDetail = () => {
     const [loading, setLoading] = useState(true);
     const [agent, setAgent] = useState<Agent | null>(null);
     const [latestMetrics, setLatestMetrics] = useState<LatestMetrics | null>(null);
-    const [timeRange, setTimeRange] = useState<'1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d' | '1w' | '30d' | '1M' | '90d' | '3M'>('1h');
+    const [timeRange, setTimeRange] = useState<'1h' | '6h' | '12h' | '24h' | '1d' | '3d' | '7d'>('1h');
     const [selectedInterface, setSelectedInterface] = useState<string>('all');
     const [metricsData, setMetricsData] = useState<{
         cpu: AggregatedCPUMetric[];
@@ -639,9 +638,6 @@ const ServerDetail = () => {
     const lastSeenDisplay = agent ? formatDateTime(agent.lastSeenAt) : '-';
     const displayName = agent?.name?.trim() ? agent.name : '未命名探针';
     const isOnline = agent?.status === 1;
-    const statusStyles = isOnline
-        ? 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600'
-        : 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500';
     const statusDotStyles = isOnline ? 'bg-emerald-500' : 'bg-slate-400';
     const statusText = isOnline ? '在线' : '离线';
 

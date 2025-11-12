@@ -297,8 +297,6 @@ func (h *AgentHandler) GetMetrics(c echo.Context) error {
 		start = end - 3*24*60*60*1000
 	case "7d", "1w":
 		start = end - 7*24*60*60*1000
-	case "30d", "1M":
-		start = end - 30*24*60*60*1000
 	default:
 		return orz.NewError(400, "无效的时间范围，支持: 1h, 6h, 12h, 24h, 3d, 7d, 30d, 90d")
 	}
