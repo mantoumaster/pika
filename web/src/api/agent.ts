@@ -1,5 +1,5 @@
-import { get, post, put } from './request';
-import type { Agent, LatestMetrics } from '../types';
+import {get, post, put} from './request';
+import type {Agent, LatestMetrics} from '../types';
 
 export interface ListAgentsResponse {
     items: Agent[];
@@ -36,6 +36,8 @@ export const getAgentPaging = (pageIndex: number = 1, pageSize: number = 10, hos
     if (status) {
         params.append('status', status);
     }
+    params.set('sortOrder', 'asc');
+    params.set('sortField', 'name');
     return get<ListAgentsResponse>(`/admin/agents?${params.toString()}`);
 };
 
@@ -59,7 +61,7 @@ export const getAgentForAdmin = (id: string) => {
 };
 
 export const getAgentMetrics = (params: GetAgentMetricsRequest) => {
-    const { agentId, type, range = '1h' } = params;
+    const {agentId, type, range = '1h'} = params;
     const query = new URLSearchParams();
     query.append('type', type);
     query.append('range', range);
@@ -149,7 +151,7 @@ export const listAuditResults = (agentId: string) => {
 
 // 更新探针名称
 export const updateAgentName = (agentId: string, name: string) => {
-    return put(`/admin/agents/${agentId}/name`, { name });
+    return put(`/admin/agents/${agentId}/name`, {name});
 };
 
 // 更新探针信息（名称、平台、位置、到期时间）

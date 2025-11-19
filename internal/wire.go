@@ -19,6 +19,8 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 		service.NewAccountService,
 		service.NewAgentService,
 		service.NewUserService,
+		service.NewOIDCService,
+		service.NewGitHubOAuthService,
 		service.NewApiKeyService,
 		service.NewAlertService,
 		service.NewPropertyService,
@@ -30,7 +32,6 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 
 		// Handlers
 		handler.NewAgentHandler,
-		handler.NewUserHandler,
 		handler.NewAlertHandler,
 		handler.NewPropertyHandler,
 		handler.NewMonitorHandler,
@@ -47,14 +48,12 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 type AppComponents struct {
 	AccountHandler  *handler.AccountHandler
 	AgentHandler    *handler.AgentHandler
-	UserHandler     *handler.UserHandler
 	ApiKeyHandler   *handler.ApiKeyHandler
 	AlertHandler    *handler.AlertHandler
 	PropertyHandler *handler.PropertyHandler
 	MonitorHandler  *handler.MonitorHandler
 
 	AgentService    *service.AgentService
-	UserService     *service.UserService
 	AlertService    *service.AlertService
 	PropertyService *service.PropertyService
 	MonitorService  *service.MonitorService

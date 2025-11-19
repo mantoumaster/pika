@@ -11,7 +11,6 @@ import (
 	"github.com/dushixiang/pika/internal/handler"
 	"github.com/dushixiang/pika/internal/models"
 	"github.com/dushixiang/pika/internal/scheduler"
-	"github.com/dushixiang/pika/internal/service"
 	"github.com/dushixiang/pika/web"
 	"github.com/google/uuid"
 
@@ -59,14 +58,8 @@ func setup(app *orz.App) error {
 		return err
 	}
 
-	// 创建默认管理员用户
-	ctx := context.Background()
-	if err := createDefaultUser(ctx, components, app.Logger()); err != nil {
-		app.Logger().Error("创建默认用户失败", zap.Error(err))
-		// 不返回错误，因为可能用户已存在
-	}
-
 	// 初始化默认属性配置
+	ctx := context.Background()
 	if err := initDefaultProperties(ctx, components, app.Logger()); err != nil {
 		app.Logger().Error("初始化默认属性配置失败", zap.Error(err))
 		// 不返回错误，继续启动
@@ -132,6 +125,9 @@ func setupApi(app *orz.App, components *AppComponents) {
 	{
 		// 认证相关
 		publicApi.POST("/login", components.AccountHandler.Login)
+		publicApi.GET("/auth/config", components.AccountHandler.GetAuthConfig)
+		publicApi.GET("/auth/oidc/url", components.AccountHandler.GetOIDCAuthURL)
+		publicApi.GET("/auth/github/url", components.AccountHandler.GetGitHubAuthURL)
 
 		// 探针信息（公开访问）- 用于公共展示页面
 		publicApi.GET("/agents", components.AgentHandler.GetAgents)
@@ -141,7 +137,7 @@ func setupApi(app *orz.App, components *AppComponents) {
 
 		// Agent 版本和下载
 		publicApi.GET("/agent/version", components.AgentHandler.GetAgentVersion)
-		publicApi.GET("/agent/downloads/:fi1lename", components.AgentHandler.DownloadAgent)
+		publicApi.GET("/agent/downloads/:filename", components.AgentHandler.DownloadAgent)
 
 		// 监控统计数据（公开访问）- 用于公共展示页面
 		publicApi.GET("/monitors/stats", components.MonitorHandler.GetAllStats)
@@ -205,23 +201,18 @@ func setupApi(app *orz.App, components *AppComponents) {
 		adminApi.GET("/monitors/:id", components.MonitorHandler.Get)
 		adminApi.PUT("/monitors/:id", components.MonitorHandler.Update)
 		adminApi.DELETE("/monitors/:id", components.MonitorHandler.Delete)
-
-		// 用户管理
-		adminApi.GET("/users", components.UserHandler.Paging)
-		adminApi.POST("/users", components.UserHandler.Create)
-		adminApi.GET("/users/:id", components.UserHandler.Get)
-		adminApi.PUT("/users/:id", components.UserHandler.Update)
-		adminApi.DELETE("/users/:id", components.UserHandler.Delete)
-		adminApi.POST("/users/:id/password", components.UserHandler.ChangePassword)
-		adminApi.POST("/users/:id/reset-password", components.UserHandler.ResetPassword)
-		adminApi.POST("/users/:id/status", components.UserHandler.UpdateStatus)
 	}
+
+	// OIDC 认证路由（如果启用）
+	publicApi.POST("/auth/oidc/callback", components.AccountHandler.OIDCLogin)
+
+	// GitHub 认证路由（如果启用）
+	publicApi.POST("/auth/github/callback", components.AccountHandler.GitHubLogin)
 }
 
 func autoMigrate(database *gorm.DB) error {
 	// 自动迁移数据库表
 	return database.AutoMigrate(
-		&models.User{},
 		&models.Agent{},
 		&models.ApiKey{},
 		&models.CPUMetric{},
@@ -242,40 +233,6 @@ func autoMigrate(database *gorm.DB) error {
 		&models.MonitorTask{},
 		&models.MonitorStats{},
 	)
-}
-
-// createDefaultUser 创建默认管理员用户
-func createDefaultUser(ctx context.Context, components *AppComponents, logger *zap.Logger) error {
-	// 检查是否已存在管理员用户
-	_, total, err := components.UserService.ListUsers(ctx, 1, 1)
-	if err != nil {
-		return err
-	}
-
-	// 如果已有用户，则不创建
-	if total > 0 {
-		logger.Info("已存在用户，跳过创建默认用户")
-		return nil
-	}
-
-	// 创建默认管理员用户
-	defaultUser := &service.CreateUserRequest{
-		Username: "admin",
-		Password: "admin123",
-		Nickname: "管理员",
-	}
-
-	user, err := components.UserService.CreateUser(ctx, defaultUser)
-	if err != nil {
-		return err
-	}
-
-	logger.Info("默认管理员用户创建成功",
-		zap.String("username", user.Username),
-		zap.String("password", "admin123"),
-		zap.String("提示", "请及时修改默认密码"))
-
-	return nil
 }
 
 // initDefaultProperties 初始化默认属性配置

@@ -1,14 +1,15 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
+import {createBrowserRouter, Navigate} from 'react-router-dom';
+import {type ComponentType, lazy, type LazyExoticComponent, Suspense} from 'react';
 import PrivateRoute from '../components/PrivateRoute';
 
 const LoginPage = lazy(() => import('../pages/Login'));
+const GitHubCallbackPage = lazy(() => import('../pages/Login/GitHubCallback'));
+const OIDCCallbackPage = lazy(() => import('../pages/Login/OIDCCallback'));
 const AdminLayout = lazy(() => import('../pages/AdminLayout'));
 const AgentListPage = lazy(() => import('../pages/Agents/AgentList'));
 const AgentDetailPage = lazy(() => import('../pages/Agents/AgentDetail'));
 const AgentInstallPage = lazy(() => import('../pages/Agents/AgentInstall'));
 const AuditResultPage = lazy(() => import('../pages/Agents/AuditResult'));
-const UserListPage = lazy(() => import('../pages/Users/UserList'));
 const ApiKeyListPage = lazy(() => import('../pages/ApiKeys/ApiKeyList'));
 const SettingsPage = lazy(() => import('../pages/Settings'));
 const ServerListPage = lazy(() => import('../pages/Public/ServerList'));
@@ -24,8 +25,8 @@ const LoadingFallback = () => (
 );
 
 const lazyLoad = (Component: LazyExoticComponent<ComponentType<any>>) => (
-    <Suspense fallback={<LoadingFallback />}>
-        <Component />
+    <Suspense fallback={<LoadingFallback/>}>
+        <Component/>
     </Suspense>
 );
 
@@ -34,6 +35,14 @@ const router = createBrowserRouter([
     {
         path: '/login',
         element: lazyLoad(LoginPage),
+    },
+    {
+        path: '/github/callback',
+        element: lazyLoad(GitHubCallbackPage),
+    },
+    {
+        path: '/oidc/callback',
+        element: lazyLoad(OIDCCallbackPage),
     },
     // 公开页面 - 不需要登录
     {
@@ -63,7 +72,7 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <Navigate to="/admin/agents" replace />,
+                element: <Navigate to="/admin/agents" replace/>,
             },
             {
                 path: 'agents',
@@ -88,10 +97,6 @@ const router = createBrowserRouter([
             {
                 path: 'monitors',
                 element: lazyLoad(MonitorListPage),
-            },
-            {
-                path: 'users',
-                element: lazyLoad(UserListPage),
             },
             {
                 path: 'settings',

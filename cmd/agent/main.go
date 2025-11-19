@@ -493,7 +493,7 @@ func registerAgent(cmd *cobra.Command, args []string) {
 		},
 		AutoUpdate: config.AutoUpdateConfig{
 			Enabled:       true,
-			CheckInterval: "10m",
+			CheckInterval: "1m",
 		},
 	}
 

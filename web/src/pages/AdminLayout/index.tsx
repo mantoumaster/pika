@@ -2,7 +2,7 @@ import { type JSX, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { App, Avatar, Button, Dropdown, Space } from 'antd';
-import { Eye, Key, LogOut, Server, User as UserIcon, Users, BookOpen, Settings, Activity } from 'lucide-react';
+import { Eye, Key, LogOut, Server, User as UserIcon, BookOpen, Settings, Activity } from 'lucide-react';
 import { logout } from '../../api/auth';
 import { getServerVersion } from '../../api/agent';
 import type { User } from '../../types';
@@ -47,12 +47,6 @@ const AdminLayout = () => {
                 icon: <Activity className="h-4 w-4" strokeWidth={2} />,
             },
             {
-                key: 'users',
-                label: '用户管理',
-                path: '/admin/users',
-                icon: <Users className="h-4 w-4" strokeWidth={2} />,
-            },
-            {
                 key: 'settings',
                 label: '系统设置',
                 path: '/admin/settings',
@@ -74,9 +68,7 @@ const AdminLayout = () => {
         setUserInfo(JSON.parse(userInfoStr));
 
         const path = location.pathname;
-        if (path.startsWith('/admin/users')) {
-            setSelectedKey('users');
-        } else if (path.startsWith('/admin/api-keys')) {
+        if (path.startsWith('/admin/api-keys')) {
             setSelectedKey('api-keys');
         } else if (path.startsWith('/admin/monitors')) {
             setSelectedKey('monitors');

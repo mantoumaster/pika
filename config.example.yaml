@@ -20,3 +20,28 @@ App:
   JWT:
     Secret: "you_must_change_me" # 替换为任意 UUID 字符串
     ExpiresHours: 168 # 7天
+
+  # Basic Auth 用户配置（使用 bcrypt 加密）
+  # 生成密码命令: htpasswd -nBC 12 '' | tr -d ':\n'
+  # 或使用 Go: bcrypt.GenerateFromPassword([]byte("your_password"), bcrypt.DefaultCost)
+  Users:
+    admin: "$2y$12$7DXcOiX1D59xNTIn5riUKusAPLP88LxxoczWmUT83MBj5EFznbp8a"  # 默认密码: admin123
+
+  # OIDC 认证配置（可选）
+  OIDC:
+    Enabled: false
+    Issuer: "https://your-oidc-provider.com"
+    ClientID: "your-client-id"
+    ClientSecret: "your-client-secret"
+    RedirectURL: "http://localhost:8080/login/oidc/callback"  # 前端回调页面
+
+  # GitHub OAuth 认证配置（可选）
+  # 创建 GitHub OAuth App: https://github.com/settings/developers
+  GitHub:
+    Enabled: false
+    ClientID: "your-github-client-id"
+    ClientSecret: "your-github-client-secret"
+    RedirectURL: "http://localhost:8080/login/github/callback"  # 前端回调页面
+    AllowedUsers:  # 允许登录的 GitHub 用户名白名单，不配置或留空则允许所有用户
+      - "your-github-username"
+      - "another-username"

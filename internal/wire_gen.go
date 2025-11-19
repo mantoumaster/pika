@@ -19,15 +19,16 @@ import (
 
 // InitializeApp 初始化应用
 func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*AppComponents, error) {
-	userService := service.NewUserService(logger, db)
-	accountService := service.NewAccountService(logger, userService, cfg)
+	userService := service.NewUserService(logger, cfg)
+	oidcService := service.NewOIDCService(logger, cfg)
+	gitHubOAuthService := service.NewGitHubOAuthService(logger, cfg)
+	accountService := service.NewAccountService(logger, userService, oidcService, gitHubOAuthService, cfg)
 	accountHandler := handler.NewAccountHandler(accountService)
 	apiKeyService := service.NewApiKeyService(logger, db)
 	agentService := service.NewAgentService(logger, db, apiKeyService)
 	manager := websocket.NewManager(logger)
 	monitorService := service.NewMonitorService(logger, db, manager)
 	agentHandler := handler.NewAgentHandler(logger, agentService, monitorService, manager)
-	userHandler := handler.NewUserHandler(userService)
 	apiKeyHandler := handler.NewApiKeyHandler(logger, apiKeyService)
 	propertyService := service.NewPropertyService(logger, db)
 	notifier := service.NewNotifier(logger)
@@ -38,13 +39,11 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 	appComponents := &AppComponents{
 		AccountHandler:  accountHandler,
 		AgentHandler:    agentHandler,
-		UserHandler:     userHandler,
 		ApiKeyHandler:   apiKeyHandler,
 		AlertHandler:    alertHandler,
 		PropertyHandler: propertyHandler,
 		MonitorHandler:  monitorHandler,
 		AgentService:    agentService,
-		UserService:     userService,
 		AlertService:    alertService,
 		PropertyService: propertyService,
 		MonitorService:  monitorService,
@@ -60,14 +59,12 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 type AppComponents struct {
 	AccountHandler  *handler.AccountHandler
 	AgentHandler    *handler.AgentHandler
-	UserHandler     *handler.UserHandler
 	ApiKeyHandler   *handler.ApiKeyHandler
 	AlertHandler    *handler.AlertHandler
 	PropertyHandler *handler.PropertyHandler
 	MonitorHandler  *handler.MonitorHandler
 
 	AgentService    *service.AgentService
-	UserService     *service.UserService
 	AlertService    *service.AlertService
 	PropertyService *service.PropertyService
 	MonitorService  *service.MonitorService

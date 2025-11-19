@@ -1,10 +1,7 @@
-// 用户相关
+// 用户相关（简化版，仅用于登录）
 export interface User {
-    id: string;
     username: string;
     nickname: string;
-    createdAt: number;
-    updatedAt: number;
 }
 
 export interface LoginRequest {
@@ -384,22 +381,6 @@ export interface LatestMetrics {
     docker?: DockerMetric[];  // Docker 容器列表
     gpu?: GPUMetric[];        // GPU 列表
     temperature?: TemperatureMetric[];  // 温度传感器列表
-}
-
-// 用户管理相关
-export interface CreateUserRequest {
-    username: string;
-    nickname: string;
-    password: string;
-}
-
-export interface UpdateUserRequest {
-    nickname?: string;
-}
-
-export interface ChangePasswordRequest {
-    oldPassword: string;
-    newPassword: string;
 }
 
 // API Key 相关

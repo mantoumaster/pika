@@ -210,7 +210,7 @@ func (h *AgentHandler) Paging(c echo.Context) error {
 	ip := c.QueryParam("ip")
 	status := c.QueryParam("status")
 
-	pr := orz.GetPageRequest(c, "last_seen_at", "hostname")
+	pr := orz.GetPageRequest(c, "name")
 
 	builder := orz.NewPageBuilder(h.agentService.AgentRepo).
 		PageRequest(pr).
