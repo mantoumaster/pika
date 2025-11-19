@@ -435,14 +435,14 @@ func (r *MetricRepo) SaveMonitorMetric(ctx context.Context, metric *models.Monit
 }
 
 // GetMonitorMetrics 获取监控指标列表
-func (r *MetricRepo) GetMonitorMetrics(ctx context.Context, agentID, monitorName string, start, end int64) ([]models.MonitorMetric, error) {
+func (r *MetricRepo) GetMonitorMetrics(ctx context.Context, agentID, monitorID string, start, end int64) ([]models.MonitorMetric, error) {
 	var metrics []models.MonitorMetric
 	query := r.db.WithContext(ctx).
 		Where("agent_id = ? AND timestamp >= ? AND timestamp <= ?", agentID, start, end)
 
-	// 如果指定了监控项名称，则只查询该监控项
-	if monitorName != "" {
-		query = query.Where("name = ?", monitorName)
+	// 如果指定了监控项ID，则只查询该监控项
+	if monitorID != "" {
+		query = query.Where("monitor_id = ?", monitorID)
 	}
 
 	err := query.Order("timestamp ASC").Find(&metrics).Error
@@ -451,23 +451,23 @@ func (r *MetricRepo) GetMonitorMetrics(ctx context.Context, agentID, monitorName
 
 // GetLatestMonitorMetrics 获取最新的监控指标（每个监控项的最新一条）
 func (r *MetricRepo) GetLatestMonitorMetrics(ctx context.Context, agentID string) ([]models.MonitorMetric, error) {
-	// 先获取该 agent 下所有监控项名称
-	var names []string
+	// 先获取该 agent 下所有监控项ID
+	var monitorIDs []string
 	err := r.db.WithContext(ctx).
 		Model(&models.MonitorMetric{}).
 		Where("agent_id = ?", agentID).
-		Distinct("name").
-		Pluck("name", &names).Error
+		Distinct("monitor_id").
+		Pluck("monitor_id", &monitorIDs).Error
 	if err != nil {
 		return nil, err
 	}
 
 	// 对每个监控项获取最新的一条记录
 	var metrics []models.MonitorMetric
-	for _, name := range names {
+	for _, monitorID := range monitorIDs {
 		var metric models.MonitorMetric
 		err := r.db.WithContext(ctx).
-			Where("agent_id = ? AND name = ?", agentID, name).
+			Where("agent_id = ? AND monitor_id = ?", agentID, monitorID).
 			Order("timestamp DESC").
 			First(&metric).Error
 		if err == nil {
@@ -479,10 +479,10 @@ func (r *MetricRepo) GetLatestMonitorMetrics(ctx context.Context, agentID string
 }
 
 // GetMonitorMetricsByName 获取指定监控项的历史数据
-func (r *MetricRepo) GetMonitorMetricsByName(ctx context.Context, agentID, monitorName string, start, end int64, limit int) ([]models.MonitorMetric, error) {
+func (r *MetricRepo) GetMonitorMetricsByName(ctx context.Context, agentID, monitorID string, start, end int64, limit int) ([]models.MonitorMetric, error) {
 	var metrics []models.MonitorMetric
 	query := r.db.WithContext(ctx).
-		Where("agent_id = ? AND name = ? AND timestamp >= ? AND timestamp <= ?", agentID, monitorName, start, end).
+		Where("agent_id = ? AND monitor_id = ? AND timestamp >= ? AND timestamp <= ?", agentID, monitorID, start, end).
 		Order("timestamp DESC")
 
 	if limit > 0 {
@@ -508,7 +508,7 @@ type AggregatedMonitorMetric struct {
 }
 
 // GetAggregatedMonitorMetrics 获取聚合后的监控指标（按探针和时间间隔聚合）
-func (r *MetricRepo) GetAggregatedMonitorMetrics(ctx context.Context, monitorName string, start, end int64, interval int) ([]AggregatedMonitorMetric, error) {
+func (r *MetricRepo) GetAggregatedMonitorMetrics(ctx context.Context, monitorID string, start, end int64, interval int) ([]AggregatedMonitorMetric, error) {
 	var metrics []AggregatedMonitorMetric
 
 	query := `
@@ -522,7 +522,7 @@ func (r *MetricRepo) GetAggregatedMonitorMetrics(ctx context.Context, monitorNam
 				timestamp,
 				ROW_NUMBER() OVER (PARTITION BY agent_id, CAST(FLOOR(timestamp / ?) * ? AS BIGINT) ORDER BY timestamp DESC) as rn
 			FROM monitor_metrics
-			WHERE name = ? AND timestamp >= ? AND timestamp <= ?
+			WHERE monitor_id = ? AND timestamp >= ? AND timestamp <= ?
 		)
 		SELECT
 			time_bucket as timestamp,
@@ -542,7 +542,7 @@ func (r *MetricRepo) GetAggregatedMonitorMetrics(ctx context.Context, monitorNam
 
 	intervalMs := int64(interval * 1000)
 	err := r.db.WithContext(ctx).
-		Raw(query, intervalMs, intervalMs, intervalMs, intervalMs, monitorName, start, end).
+		Raw(query, intervalMs, intervalMs, intervalMs, intervalMs, monitorID, start, end).
 		Scan(&metrics).Error
 
 	return metrics, err

@@ -180,8 +180,8 @@ func (DockerMetric) TableName() string {
 // MonitorMetric 监控指标
 type MonitorMetric struct {
 	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
-	AgentID        string `gorm:"index:idx_agent_name_time;index:idx_agent_time" json:"agentId"`                  // 探针ID
-	Name           string `gorm:"index:idx_agent_name_time;index" json:"name"`                                    // 监控项名称
+	AgentId        string `json:"agentId"`                                                                        // 探针ID
+	MonitorId      string `json:"monitorId"`                                                                      // 监控项ID
 	Type           string `json:"type"`                                                                           // 监控类型: http, tcp
 	Target         string `json:"target"`                                                                         // 监控目标
 	Status         string `json:"status"`                                                                         // 状态: up, down

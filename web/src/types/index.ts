@@ -293,11 +293,34 @@ export interface MonitorListResponse {
     pageSize: number;
 }
 
+// 面向公开页面的监控项及聚合统计
+export interface PublicMonitor {
+    id: string;
+    name: string;
+    type: 'http' | 'https' | 'tcp';
+    target: string;
+    description?: string;
+    enabled: boolean;
+    interval: number;
+    agentIds: string[];
+    agentCount: number;
+    lastCheckStatus: string;
+    currentResponse: number;
+    avgResponse24h: number;
+    uptime24h: number;
+    uptime30d: number;
+    certExpiryDate: number;
+    certExpiryDays: number;
+    lastCheckTime: number;
+}
+
 // 监控统计数据
 export interface MonitorStats {
     id: number;
     agentId: string;
-    name: string;
+    agentName?: string;           // 探针名称
+    monitorId: string;            // 监控项ID
+    name: string;                 // 监控项名称
     type: string;
     target: string;
     currentResponse: number;      // 当前响应时间(ms)

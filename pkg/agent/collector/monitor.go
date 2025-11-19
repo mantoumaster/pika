@@ -60,7 +60,7 @@ func (c *MonitorCollector) Collect(items []protocol.MonitorItem) []protocol.Moni
 			result = c.checkTCP(item)
 		default:
 			result = protocol.MonitorData{
-				Name:      item.Name,
+				ID:        item.ID,
 				Type:      item.Type,
 				Target:    item.Target,
 				Status:    "down",
@@ -78,7 +78,7 @@ func (c *MonitorCollector) Collect(items []protocol.MonitorItem) []protocol.Moni
 // checkHTTP 检查 HTTP/HTTPS 服务
 func (c *MonitorCollector) checkHTTP(item protocol.MonitorItem) protocol.MonitorData {
 	result := protocol.MonitorData{
-		Name:      item.Name,
+		ID:        item.ID,
 		Type:      item.Type,
 		Target:    item.Target,
 		CheckedAt: time.Now().UnixMilli(),
@@ -200,7 +200,7 @@ func (c *MonitorCollector) checkHTTP(item protocol.MonitorItem) protocol.Monitor
 // checkTCP 检查 TCP 端口
 func (c *MonitorCollector) checkTCP(item protocol.MonitorItem) protocol.MonitorData {
 	result := protocol.MonitorData{
-		Name:      item.Name,
+		ID:        item.ID,
 		Type:      item.Type,
 		Target:    item.Target,
 		CheckedAt: time.Now().UnixMilli(),

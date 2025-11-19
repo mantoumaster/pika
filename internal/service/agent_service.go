@@ -379,8 +379,8 @@ func (s *AgentService) HandleMetricData(ctx context.Context, agentID string, met
 		// 保存每个监控项的数据
 		for _, monitorData := range monitorDataList {
 			metric := &models.MonitorMetric{
-				AgentID:        agentID,
-				Name:           monitorData.Name,
+				AgentId:        agentID,
+				MonitorId:      monitorData.ID,
 				Type:           monitorData.Type,
 				Target:         monitorData.Target,
 				Status:         monitorData.Status,
@@ -397,7 +397,7 @@ func (s *AgentService) HandleMetricData(ctx context.Context, agentID string, met
 				s.logger.Error("failed to save monitor metric",
 					zap.Error(err),
 					zap.String("agentID", agentID),
-					zap.String("name", monitorData.Name))
+					zap.String("MonitorId", monitorData.ID))
 			}
 		}
 		return nil

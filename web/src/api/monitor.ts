@@ -1,5 +1,5 @@
 import {get, post, put, del} from './request';
-import type {MonitorListResponse, MonitorTask, MonitorTaskRequest, MonitorStats} from '../types';
+import type {MonitorListResponse, MonitorTask, MonitorTaskRequest, MonitorStats, PublicMonitor} from '../types';
 
 export const listMonitors = (page: number = 1, pageSize: number = 10, keyword?: string) => {
     const params = new URLSearchParams();
@@ -27,14 +27,14 @@ export const deleteMonitor = (id: number) => {
     return del(`/admin/monitors/${id}`);
 };
 
-// 公开接口 - 获取所有监控统计数据
-export const getAllMonitorStats = () => {
-    return get<MonitorStats[]>('/monitors/stats');
+// 公开接口 - 获取监控配置及聚合统计
+export const getPublicMonitors = () => {
+    return get<PublicMonitor[]>('/monitors/stats');
 };
 
 // 公开接口 - 获取指定监控的统计数据
-export const getMonitorStatsByName = (name: string) => {
-    return get<MonitorStats[]>(`/monitors/${encodeURIComponent(name)}/stats`);
+export const getMonitorStatsById = (id: string) => {
+    return get<MonitorStats[]>(`/monitors/${encodeURIComponent(id)}/stats`);
 };
 
 // 聚合的监控历史数据
@@ -52,6 +52,6 @@ export interface AggregatedMonitorMetric {
 }
 
 // 公开接口 - 获取指定监控的历史数据
-export const getMonitorHistory = (name: string, range: string = '5m') => {
-    return get<AggregatedMonitorMetric[]>(`/monitors/${encodeURIComponent(name)}/history?range=${range}`);
+export const getMonitorHistory = (id: string, range: string = '5m') => {
+    return get<AggregatedMonitorMetric[]>(`/monitors/${encodeURIComponent(id)}/history?range=${range}`);
 };

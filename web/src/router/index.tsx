@@ -49,7 +49,7 @@ const router = createBrowserRouter([
         element: lazyLoad(PublicMonitorListPage),
     },
     {
-        path: '/monitors/:name',
+        path: '/monitors/:id',
         element: lazyLoad(PublicMonitorDetailPage),
     },
     // 管理员页面 - 需要登录

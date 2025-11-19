@@ -320,7 +320,7 @@ func (a *Agent) registerAgent(conn *safeConn) error {
 		return fmt.Errorf("解析注册响应失败: %w", err)
 	}
 
-	log.Printf("注册成功: AgentID=%s, Status=%s", registerResp.AgentID, registerResp.Status)
+	log.Printf("注册成功: AgentId=%s, Status=%s", registerResp.AgentID, registerResp.Status)
 	return nil
 }
 

@@ -141,12 +141,12 @@ func setupApi(app *orz.App, components *AppComponents) {
 
 		// Agent 版本和下载
 		publicApi.GET("/agent/version", components.AgentHandler.GetAgentVersion)
-		publicApi.GET("/agent/downloads/:filename", components.AgentHandler.DownloadAgent)
+		publicApi.GET("/agent/downloads/:fi1lename", components.AgentHandler.DownloadAgent)
 
 		// 监控统计数据（公开访问）- 用于公共展示页面
 		publicApi.GET("/monitors/stats", components.MonitorHandler.GetAllStats)
-		publicApi.GET("/monitors/:name/stats", components.MonitorHandler.GetStatsByName)
-		publicApi.GET("/monitors/:name/history", components.MonitorHandler.GetHistoryByName)
+		publicApi.GET("/monitors/:id/stats", components.MonitorHandler.GetStatsByID)
+		publicApi.GET("/monitors/:id/history", components.MonitorHandler.GetHistoryByID)
 	}
 
 	// WebSocket 路由（探针连接）

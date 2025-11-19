@@ -8,7 +8,7 @@ type MonitorConfigPayload struct {
 
 // MonitorItem 监控项配置
 type MonitorItem struct {
-	Name       string             `json:"name"`
+	ID         string             `json:"id"`
 	Type       string             `json:"type"`
 	Target     string             `json:"target"`
 	HTTPConfig *HTTPMonitorConfig `json:"httpConfig,omitempty"`

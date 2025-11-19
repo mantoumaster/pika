@@ -267,7 +267,7 @@ type DockerContainerData struct {
 
 // MonitorData 监控数据
 type MonitorData struct {
-	Name         string `json:"name"`                   // 监控项名称
+	ID           string `json:"id"`                     // 监控项ID
 	Type         string `json:"type"`                   // 监控类型: http, tcp
 	Target       string `json:"target"`                 // 监控目标
 	Status       string `json:"status"`                 // 状态: up, down

@@ -23,7 +23,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import {getMonitorStatsByName, getMonitorHistory, type AggregatedMonitorMetric} from '../../api/monitor';
+import {getMonitorStatsById, getMonitorHistory, type AggregatedMonitorMetric} from '../../api/monitor';
 import type {MonitorStats} from '../../types';
 import PublicHeader from '../../components/PublicHeader';
 import PublicFooter from '../../components/PublicFooter';
@@ -69,19 +69,24 @@ const LoadingSpinner = () => (
 );
 
 const StatusBadge = ({status}: { status: string }) => {
-    const isUp = status === 'up';
+    let containerClass = 'bg-slate-100 text-slate-600';
+    let label = '未知';
+    let icon = <Clock className="h-4 w-4"/>;
+
+    if (status === 'up') {
+        containerClass = 'bg-emerald-50 text-emerald-700';
+        label = '正常';
+        icon = <CheckCircle2 className="h-4 w-4"/>;
+    } else if (status === 'down') {
+        containerClass = 'bg-red-50 text-red-700';
+        label = '异常';
+        icon = <AlertCircle className="h-4 w-4"/>;
+    }
+
     return (
-        <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
-            isUp
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-red-50 text-red-700'
-        }`}>
-            {isUp ? (
-                <CheckCircle2 className="h-4 w-4"/>
-            ) : (
-                <AlertCircle className="h-4 w-4"/>
-            )}
-            {isUp ? '正常' : '异常'}
+        <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${containerClass}`}>
+            {icon}
+            {label}
         </div>
     );
 };
@@ -196,31 +201,31 @@ type TimeRange = typeof timeRangeOptions[number]['value'];
 
 const MonitorDetail = () => {
     const navigate = useNavigate();
-    const {name} = useParams<{ name: string }>();
+    const {id} = useParams<{ id: string }>();
     const [selectedAgent, setSelectedAgent] = useState<string>('all');
     const [timeRange, setTimeRange] = useState<TimeRange>('5m');
 
     const {data: monitorStats = [], isLoading} = useQuery<MonitorStats[]>({
-        queryKey: ['monitorStats', name],
+        queryKey: ['monitorStats', id],
         queryFn: async () => {
-            if (!name) return [];
-            const response = await getMonitorStatsByName(name);
+            if (!id) return [];
+            const response = await getMonitorStatsById(id);
             return response.data || [];
         },
         refetchInterval: 30000,
-        enabled: !!name,
+        enabled: !!id,
     });
 
     // 获取历史数据
     const {data: historyData = []} = useQuery<AggregatedMonitorMetric[]>({
-        queryKey: ['monitorHistory', name, timeRange],
+        queryKey: ['monitorHistory', id, timeRange],
         queryFn: async () => {
-            if (!name) return [];
-            const response = await getMonitorHistory(name, timeRange);
+            if (!id) return [];
+            const response = await getMonitorHistory(id, timeRange);
             return response.data || [];
         },
         refetchInterval: 30000,
-        enabled: !!name,
+        enabled: !!id,
     });
 
     // 获取所有可用的探针列表
@@ -228,7 +233,7 @@ const MonitorDetail = () => {
         if (monitorStats.length === 0) return [];
         return monitorStats.map(stat => ({
             id: stat.agentId,
-            label: stat.agentId.substring(0, 8),
+            label: stat.agentName || stat.agentId.substring(0, 8),
         }));
     }, [monitorStats]);
 
@@ -308,6 +313,7 @@ const MonitorDetail = () => {
     }
 
     const firstStat = monitorStats[0];
+    const monitorTitle = firstStat?.name ?? '监控详情';
     const avgUptime24h = monitorStats.reduce((sum, s) => sum + s.uptime24h, 0) / monitorStats.length;
     const avgUptime30d = monitorStats.reduce((sum, s) => sum + s.uptime30d, 0) / monitorStats.length;
     const hasCert = firstStat.certExpiryDate > 0;
@@ -315,7 +321,7 @@ const MonitorDetail = () => {
 
     return (
         <div className="min-h-screen bg-white text-slate-900 flex flex-col">
-            <PublicHeader title={`监控详情 - ${name}`}/>
+            <PublicHeader title={`监控详情 - ${monitorTitle}`}/>
 
             <main className="flex-1 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -492,7 +498,7 @@ const MonitorDetail = () => {
                                             const originalIndex = monitorStats.findIndex(s => s.agentId === stat.agentId);
                                             const agentKey = `agent_${stat.agentId}`;
                                             const color = AGENT_COLORS[originalIndex % AGENT_COLORS.length];
-                                            const agentLabel = stat.agentId.substring(0, 8);
+                                            const agentLabel = stat.agentName || stat.agentId.substring(0, 8);
                                             return (
                                                 <Area
                                                     key={agentKey}
@@ -564,9 +570,22 @@ const MonitorDetail = () => {
                                                     className="inline-block h-3 w-3 rounded-full"
                                                     style={{backgroundColor: color}}
                                                 />
-                                                <span className="font-mono text-sm text-slate-700">
-                                                    {stats.agentId.substring(0, 8)}...
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    {stats.agentName ? (
+                                                        <>
+                                                            <span className="text-sm font-medium text-slate-900">
+                                                                {stats.agentName}
+                                                            </span>
+                                                            <span className="font-mono text-xs text-slate-500">
+                                                                {stats.agentId.substring(0, 8)}...
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="font-mono text-sm text-slate-700">
+                                                            {stats.agentId.substring(0, 8)}...
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

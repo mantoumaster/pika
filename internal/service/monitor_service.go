@@ -11,6 +11,7 @@ import (
 	"github.com/dushixiang/pika/internal/repo"
 	ws "github.com/dushixiang/pika/internal/websocket"
 	"github.com/go-orz/orz"
+	"github.com/go-orz/toolkit"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
@@ -48,6 +49,27 @@ type MonitorTaskRequest struct {
 	HTTPConfig  protocol.HTTPMonitorConfig `json:"httpConfig,omitempty"`
 	TCPConfig   protocol.TCPMonitorConfig  `json:"tcpConfig,omitempty"`
 	AgentIds    []string                   `json:"agentIds,omitempty"`
+}
+
+// PublicMonitorOverview 用于公开展示的监控配置及汇总数据
+type PublicMonitorOverview struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Target          string   `json:"target"`
+	Description     string   `json:"description"`
+	Enabled         bool     `json:"enabled"`
+	Interval        int      `json:"interval"`
+	AgentIds        []string `json:"agentIds"`
+	AgentCount      int      `json:"agentCount"`
+	LastCheckStatus string   `json:"lastCheckStatus"`
+	CurrentResponse int64    `json:"currentResponse"`
+	AvgResponse24h  int64    `json:"avgResponse24h"`
+	Uptime24h       float64  `json:"uptime24h"`
+	Uptime30d       float64  `json:"uptime30d"`
+	CertExpiryDate  int64    `json:"certExpiryDate"`
+	CertExpiryDays  int      `json:"certExpiryDays"`
+	LastCheckTime   int64    `json:"lastCheckTime"`
 }
 
 func (s *MonitorService) CreateMonitor(ctx context.Context, req *MonitorTaskRequest) (*models.MonitorTask, error) {
@@ -117,6 +139,155 @@ func (s *MonitorService) DeleteMonitor(ctx context.Context, id string) error {
 	})
 }
 
+// GetPublicMonitorOverview 返回公开展示所需的监控配置和汇总统计
+func (s *MonitorService) GetPublicMonitorOverview(ctx context.Context) ([]PublicMonitorOverview, error) {
+	var monitors []models.MonitorTask
+	if err := s.MonitorRepo.GetDB(ctx).
+		Where("enabled = ?", true).
+		Order("name ASC").
+		Find(&monitors).Error; err != nil {
+		return nil, err
+	}
+
+	monitorIds := make([]string, 0, len(monitors))
+	for _, monitor := range monitors {
+		monitorIds = append(monitorIds, monitor.ID)
+	}
+
+	statsList, err := s.monitorStatsRepo.FindByMonitorIdIn(ctx, monitorIds)
+	if err != nil {
+		return nil, err
+	}
+
+	statsMap := make(map[string][]models.MonitorStats, len(monitors))
+	for _, stats := range statsList {
+		statsMap[stats.MonitorId] = append(statsMap[stats.MonitorId], stats)
+	}
+
+	items := make([]PublicMonitorOverview, 0, len(monitors))
+	for _, monitor := range monitors {
+		summary := aggregateMonitorStats(statsMap[monitor.ID])
+		item := PublicMonitorOverview{
+			ID:              monitor.ID,
+			Name:            monitor.Name,
+			Type:            monitor.Type,
+			Target:          monitor.Target,
+			Description:     monitor.Description,
+			Enabled:         monitor.Enabled,
+			Interval:        monitor.Interval,
+			AgentIds:        cloneAgentIDs(monitor.AgentIds),
+			AgentCount:      summary.AgentCount,
+			LastCheckStatus: summary.LastCheckStatus,
+			CurrentResponse: summary.CurrentResponse,
+			AvgResponse24h:  summary.AvgResponse24h,
+			Uptime24h:       summary.Uptime24h,
+			Uptime30d:       summary.Uptime30d,
+			CertExpiryDate:  summary.CertExpiryDate,
+			CertExpiryDays:  summary.CertExpiryDays,
+			LastCheckTime:   summary.LastCheckTime,
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+type monitorOverviewSummary struct {
+	AgentCount      int
+	LastCheckStatus string
+	CurrentResponse int64
+	AvgResponse24h  int64
+	Uptime24h       float64
+	Uptime30d       float64
+	CertExpiryDate  int64
+	CertExpiryDays  int
+	LastCheckTime   int64
+}
+
+func aggregateMonitorStats(stats []models.MonitorStats) monitorOverviewSummary {
+	summary := monitorOverviewSummary{
+		LastCheckStatus: "unknown",
+	}
+
+	if len(stats) == 0 {
+		return summary
+	}
+
+	var totalCurrentResponse int64
+	var totalAvgResponse24h int64
+	var totalUptime24h float64
+	var totalUptime30d float64
+	var lastCheckTime int64
+	var certExpiryDate int64
+	var certExpiryDays int
+	hasCert := false
+	hasUp := false
+	hasDown := false
+
+	for _, stat := range stats {
+		totalCurrentResponse += stat.CurrentResponse
+		totalAvgResponse24h += stat.AvgResponse24h
+		totalUptime24h += stat.Uptime24h
+		totalUptime30d += stat.Uptime30d
+
+		if stat.LastCheckTime > lastCheckTime {
+			lastCheckTime = stat.LastCheckTime
+		}
+
+		switch stat.LastCheckStatus {
+		case "up":
+			hasUp = true
+		case "down":
+			hasDown = true
+		}
+
+		if stat.CertExpiryDate > 0 {
+			if !hasCert || stat.CertExpiryDate < certExpiryDate {
+				certExpiryDate = stat.CertExpiryDate
+				certExpiryDays = stat.CertExpiryDays
+				hasCert = true
+			}
+		}
+	}
+
+	count := len(stats)
+	summary.AgentCount = count
+	if count > 0 {
+		summary.CurrentResponse = totalCurrentResponse / int64(count)
+		summary.AvgResponse24h = totalAvgResponse24h / int64(count)
+		summary.Uptime24h = totalUptime24h / float64(count)
+		summary.Uptime30d = totalUptime30d / float64(count)
+	}
+	summary.LastCheckTime = lastCheckTime
+
+	switch {
+	case hasUp:
+		summary.LastCheckStatus = "up"
+	case hasDown:
+		summary.LastCheckStatus = "down"
+	default:
+		summary.LastCheckStatus = "unknown"
+	}
+
+	if hasCert {
+		summary.CertExpiryDate = certExpiryDate
+		summary.CertExpiryDays = certExpiryDays
+	}
+
+	return summary
+}
+
+func cloneAgentIDs(ids datatypes.JSONSlice[string]) []string {
+	if len(ids) == 0 {
+		return []string{}
+	}
+
+	copied := make([]string, len(ids))
+	copy(copied, []string(ids))
+	return copied
+}
+
 // BroadcastMonitorConfig 向所有在线探针广播监控配置
 func (s *MonitorService) BroadcastMonitorConfig(ctx context.Context) error {
 	// 获取所有启用的监控任务
@@ -172,7 +343,7 @@ func (s *MonitorService) BroadcastMonitorConfig(ctx context.Context) error {
 		items := make([]protocol.MonitorItem, 0, len(tasks))
 		for _, task := range tasks {
 			item := protocol.MonitorItem{
-				Name:   task.Name,
+				ID:     task.ID,
 				Type:   task.Type,
 				Target: task.Target,
 			}
@@ -236,36 +407,47 @@ func (s *MonitorService) sendMonitorConfigToAgent(agentID string, payload protoc
 
 // SendMonitorTaskToAgents 向指定探针发送单个监控任务（公开方法）
 func (s *MonitorService) SendMonitorTaskToAgents(ctx context.Context, monitor models.MonitorTask, agentIDs []string) error {
-	// 获取所有在线探针
-	agents, err := s.agentRepo.FindOnlineAgents(ctx)
-	if err != nil {
-		return err
+	// 实时获取所有在线探针，避免依赖数据库状态
+	onlineIDs := s.wsManager.GetAllClients()
+	if len(onlineIDs) == 0 {
+		return nil
 	}
 
-	// 确定要发送的探针列表
-	var targetAgents []models.Agent
+	onlineSet := make(map[string]struct{}, len(onlineIDs))
+	for _, id := range onlineIDs {
+		onlineSet[id] = struct{}{}
+	}
+
+	// 确定要发送的探针ID列表
+	targetAgentIDs := make([]string, 0)
 	if len(agentIDs) == 0 {
-		// 发送给所有在线探针
-		targetAgents = agents
+		// 发送给所有当前在线的探针
+		targetAgentIDs = append(targetAgentIDs, onlineIDs...)
 	} else {
-		// 只发送给指定的在线探针
-		for _, agent := range agents {
-			for _, agentID := range agentIDs {
-				if agent.ID == agentID {
-					targetAgents = append(targetAgents, agent)
-					break
-				}
+		// 只发送给指定且当前在线的探针
+		for _, id := range agentIDs {
+			if _, ok := onlineSet[id]; ok {
+				targetAgentIDs = append(targetAgentIDs, id)
 			}
 		}
 	}
 
+	if len(targetAgentIDs) == 0 {
+		return nil
+	}
+
+	// 查询探针基础信息（用于保持原有逻辑的一致性）
+	targetAgents, err := s.agentRepo.ListByIDs(ctx, targetAgentIDs)
+	if err != nil {
+		return err
+	}
 	if len(targetAgents) == 0 {
 		return nil
 	}
 
 	// 构建监控项
 	item := protocol.MonitorItem{
-		Name:   monitor.Name,
+		ID:     monitor.ID,
 		Type:   monitor.Type,
 		Target: monitor.Target,
 	}
@@ -337,7 +519,7 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 		}
 
 		for _, agent := range targetAgents {
-			stats, err := s.calculateStatsForAgentMonitor(ctx, agent.ID, monitor.Name, monitor.Type, monitor.Target, now)
+			stats, err := s.calculateStatsForAgentMonitor(ctx, agent.ID, monitor.ID, monitor.Type, monitor.Target, now)
 			if err != nil {
 				s.logger.Error("计算监控统计失败",
 					zap.String("agentID", agent.ID),
@@ -346,7 +528,7 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 				continue
 			}
 
-			if err := s.monitorStatsRepo.UpsertStats(ctx, stats); err != nil {
+			if err := s.monitorStatsRepo.Save(ctx, stats); err != nil {
 				s.logger.Error("保存监控统计失败",
 					zap.String("agentID", agent.ID),
 					zap.String("monitorName", monitor.Name),
@@ -359,10 +541,11 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 }
 
 // calculateStatsForAgentMonitor 计算单个探针单个监控任务的统计数据
-func (s *MonitorService) calculateStatsForAgentMonitor(ctx context.Context, agentID, monitorName, monitorType, target string, now time.Time) (*models.MonitorStats, error) {
+func (s *MonitorService) calculateStatsForAgentMonitor(ctx context.Context, agentID, monitorId, monitorType, target string, now time.Time) (*models.MonitorStats, error) {
 	stats := &models.MonitorStats{
+		ID:          toolkit.Sign("monitor_stats", agentID, monitorId, monitorType, target),
 		AgentID:     agentID,
-		MonitorName: monitorName,
+		MonitorId:   monitorId,
 		MonitorType: monitorType,
 		Target:      target,
 	}
@@ -370,14 +553,14 @@ func (s *MonitorService) calculateStatsForAgentMonitor(ctx context.Context, agen
 	// 计算24小时数据
 	start24h := now.Add(-24 * time.Hour).UnixMilli()
 	end := now.UnixMilli()
-	metrics24h, err := s.metricRepo.GetMonitorMetrics(ctx, agentID, monitorName, start24h, end)
+	metrics24h, err := s.metricRepo.GetMonitorMetrics(ctx, agentID, monitorId, start24h, end)
 	if err != nil {
 		return nil, err
 	}
 
 	// 计算30天数据
 	start30d := now.Add(-30 * 24 * time.Hour).UnixMilli()
-	metrics30d, err := s.metricRepo.GetMonitorMetrics(ctx, agentID, monitorName, start30d, end)
+	metrics30d, err := s.metricRepo.GetMonitorMetrics(ctx, agentID, monitorId, start30d, end)
 	if err != nil {
 		return nil, err
 	}
@@ -435,18 +618,39 @@ func (s *MonitorService) calculateStatsForAgentMonitor(ctx context.Context, agen
 	return stats, nil
 }
 
-// GetMonitorStatsByName 获取监控任务的统计数据（所有探针）
-func (s *MonitorService) GetMonitorStatsByName(ctx context.Context, monitorName string) ([]models.MonitorStats, error) {
-	return s.monitorStatsRepo.ListByMonitorName(ctx, monitorName)
-}
+// GetMonitorStatsByID 获取监控任务的统计数据（所有探针）
+func (s *MonitorService) GetMonitorStatsByID(ctx context.Context, monitorID string) ([]models.MonitorStats, error) {
+	monitor, err := s.MonitorRepo.FindById(ctx, monitorID)
+	if err != nil {
+		return nil, err
+	}
 
-// GetAllMonitorStats 获取所有监控统计数据
-func (s *MonitorService) GetAllMonitorStats(ctx context.Context) ([]models.MonitorStats, error) {
-	return s.monitorStatsRepo.ListAll(ctx)
+	statsList, err := s.monitorStatsRepo.FindByMonitorId(ctx, monitor.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 填充监控名称和探针名称
+	for i := range statsList {
+		statsList[i].MonitorName = monitor.Name
+
+		// 查询探针名称
+		agent, err := s.agentRepo.FindById(ctx, statsList[i].AgentID)
+		if err == nil {
+			statsList[i].AgentName = agent.Name
+		}
+	}
+
+	return statsList, nil
 }
 
 // GetMonitorHistory 获取监控任务的历史响应时间数据
-func (s *MonitorService) GetMonitorHistory(ctx context.Context, monitorName, timeRange string) ([]repo.AggregatedMonitorMetric, error) {
+func (s *MonitorService) GetMonitorHistory(ctx context.Context, monitorID, timeRange string) ([]repo.AggregatedMonitorMetric, error) {
+	monitor, err := s.MonitorRepo.FindById(ctx, monitorID)
+	if err != nil {
+		return nil, err
+	}
+
 	// 解析时间范围
 	var duration time.Duration
 	var interval int // 聚合间隔（秒）
@@ -473,5 +677,5 @@ func (s *MonitorService) GetMonitorHistory(ctx context.Context, monitorName, tim
 	end := now.UnixMilli()
 	start := now.Add(-duration).UnixMilli()
 
-	return s.metricRepo.GetAggregatedMonitorMetrics(ctx, monitorName, start, end, interval)
+	return s.metricRepo.GetAggregatedMonitorMetrics(ctx, monitor.ID, start, end, interval)
 }

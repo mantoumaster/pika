@@ -121,7 +121,7 @@ func (h *MonitorHandler) Delete(c echo.Context) error {
 // GetAllStats 获取所有监控统计数据
 func (h *MonitorHandler) GetAllStats(c echo.Context) error {
 	ctx := c.Request().Context()
-	stats, err := h.monitorService.GetAllMonitorStats(ctx)
+	stats, err := h.monitorService.GetPublicMonitorOverview(ctx)
 	if err != nil {
 		return err
 	}
@@ -129,12 +129,12 @@ func (h *MonitorHandler) GetAllStats(c echo.Context) error {
 	return orz.Ok(c, stats)
 }
 
-// GetStatsByName 获取指定监控任务的统计数据（所有探针）
-func (h *MonitorHandler) GetStatsByName(c echo.Context) error {
-	name := c.Param("name")
+// GetStatsByID 获取指定监控任务的统计数据（所有探针）
+func (h *MonitorHandler) GetStatsByID(c echo.Context) error {
+	id := c.Param("id")
 
 	ctx := c.Request().Context()
-	stats, err := h.monitorService.GetMonitorStatsByName(ctx, name)
+	stats, err := h.monitorService.GetMonitorStatsByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -142,9 +142,9 @@ func (h *MonitorHandler) GetStatsByName(c echo.Context) error {
 	return orz.Ok(c, stats)
 }
 
-// GetHistoryByName 获取指定监控任务的历史响应时间数据
-func (h *MonitorHandler) GetHistoryByName(c echo.Context) error {
-	name := c.Param("name")
+// GetHistoryByID 获取指定监控任务的历史响应时间数据
+func (h *MonitorHandler) GetHistoryByID(c echo.Context) error {
+	id := c.Param("id")
 	timeRange := c.QueryParam("range")
 
 	// 默认时间范围为 5 分钟
@@ -153,7 +153,7 @@ func (h *MonitorHandler) GetHistoryByName(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	history, err := h.monitorService.GetMonitorHistory(ctx, name, timeRange)
+	history, err := h.monitorService.GetMonitorHistory(ctx, id, timeRange)
 	if err != nil {
 		return err
 	}
