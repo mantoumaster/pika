@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {App, Button, Divider, Form, Input} from 'antd';
 import {LockOutlined, UserOutlined, GithubOutlined} from '@ant-design/icons';
+import {Sparkles} from 'lucide-react';
 import {getAuthConfig, getOIDCAuthURL, getGitHubAuthURL, login} from '../../api/auth';
 import type {LoginRequest} from '../../types';
 
@@ -75,79 +76,101 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="w-[360px] p-8 py-12 border rounded-md border-gray-200">
-                <div className="text-center mb-10">
-                    <h1 className="text-4xl font-semibold mb-2">Pika 探针</h1>
-                    <p className="text-base">老鸡专用监控管理平台</p>
-                </div>
+        <div className="min-h-screen bg-slate-950">
+            <div className="mx-auto flex min-h-screen max-w-4xl items-center justify-center px-4 py-10">
+                <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-1">
+                    <div className="rounded-[26px] bg-white p-8 shadow-2xl sm:p-10">
+                        <div className="mb-8 text-center">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-1 text-xs font-medium text-slate-600">
+                                <Sparkles className="h-4 w-4 text-blue-600"/>
+                                Pika Monitor
+                            </div>
+                            <h1 className="mt-4 text-3xl font-semibold text-slate-900">登录 Pika 控制台</h1>
+                            <p className="mt-2 text-sm text-slate-500">面向探针的统一监控后台</p>
+                        </div>
 
-                <Form
-                    name="login"
-                    onFinish={onFinish}
-                    autoComplete="off"
-                >
-                    <Form.Item
-                        name="username"
-                        rules={[{required: true, message: '请输入用户名'}]}
-                    >
-                        <Input
-                            prefix={<UserOutlined/>}
-                            placeholder="用户名"
-                        />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="password"
-                        rules={[{required: true, message: '请输入密码'}]}
-                    >
-                        <Input.Password
-                            prefix={<LockOutlined/>}
-                            placeholder="密码"
-                        />
-                    </Form.Item>
-
-                    <Form.Item>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={loading}
-                            block
+                        <Form
+                            name="login"
+                            layout="vertical"
+                            size="large"
+                            onFinish={onFinish}
+                            autoComplete="off"
                         >
-                            登录
-                        </Button>
-                    </Form.Item>
-                </Form>
+                            <Form.Item
+                                label="用户名"
+                                name="username"
+                                rules={[{required: true, message: '请输入用户名'}]}
+                            >
+                                <Input
+                                    prefix={<UserOutlined/>}
+                                    placeholder="请输入用户名"
+                                />
+                            </Form.Item>
 
-                {(oidcEnabled || githubEnabled) && (
-                    <>
-                        <Divider plain>或</Divider>
-                        {githubEnabled && (
-                            <Button
-                                block
-                                loading={githubLoading}
-                                onClick={handleGitHubLogin}
-                                icon={<GithubOutlined />}
-                                className="mb-2"
+                            <Form.Item
+                                label="密码"
+                                name="password"
+                                rules={[{required: true, message: '请输入密码'}]}
                             >
-                                使用 GitHub 登录
-                            </Button>
+                                <Input.Password
+                                    prefix={<LockOutlined/>}
+                                    placeholder="请输入密码"
+                                />
+                            </Form.Item>
+
+                            <Form.Item className="mb-0">
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    loading={loading}
+                                    block
+                                    size="large"
+                                    className="h-12 rounded-2xl text-base font-semibold"
+                                >
+                                    登录
+                                </Button>
+                            </Form.Item>
+                        </Form>
+
+                        {(oidcEnabled || githubEnabled) && (
+                            <div className="mt-8">
+                                <Divider plain className="text-xs text-slate-400">其他登录方式</Divider>
+                                <div className="mt-4 space-y-3">
+                                    {githubEnabled && (
+                                        <Button
+                                            block
+                                            loading={githubLoading}
+                                            icon={<GithubOutlined/>}
+                                            onClick={handleGitHubLogin}
+                                            size="large"
+                                            className="h-12 rounded-2xl border-slate-200 text-slate-800 hover:border-slate-300"
+                                        >
+                                            GitHub 登录
+                                        </Button>
+                                    )}
+                                    {oidcEnabled && (
+                                        <Button
+                                            block
+                                            loading={oidcLoading}
+                                            onClick={handleOIDCLogin}
+                                            size="large"
+                                            className="h-12 rounded-2xl border-slate-200 text-slate-800 hover:border-slate-300"
+                                        >
+                                            OIDC 登录
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         )}
-                        {oidcEnabled && (
-                            <Button
-                                block
-                                loading={oidcLoading}
-                                onClick={handleOIDCLogin}
-                            >
-                                使用 OIDC 登录
-                            </Button>
-                        )}
-                    </>
-                )}
+
+                        <p className="mt-8 text-center text-xs text-slate-400">
+                            登录即表示同意平台安全策略
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
 export default Login;
-
