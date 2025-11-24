@@ -52,6 +52,11 @@ const AgentInstall = () => {
             icon: <img src={linuxPng} alt="Linux" className={'h-4 w-4'}/>,
             downloadUrl: '/api/agent/downloads/agent-linux-arm64',
         },
+        'linux-loong64': {
+            name: 'Linux (LoongArch64)',
+            icon: <img src={linuxPng} alt="Linux" className={'h-4 w-4'}/>,
+            downloadUrl: '/api/agent/downloads/agent-linux-loong64',
+        },
         'darwin-amd64': {
             name: 'macOS (Intel)',
             icon: <img src={applePng} alt="macOS" className={'h-4 w-4'}/>,
