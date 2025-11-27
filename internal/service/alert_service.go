@@ -84,7 +84,7 @@ func (s *AlertService) ListAlertRecords(ctx context.Context, agentID string, lim
 }
 
 // CheckMetrics 检查指标并触发告警
-func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, memory, disk float64) error {
+func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, memory, disk, networkSpeed float64) error {
 	// 获取全局告警配置
 	globalConfigs, err := s.alertRepo.FindEnabledByAgentID(ctx, "global")
 	if err != nil {
@@ -116,6 +116,11 @@ func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, me
 		// 检查磁盘告警
 		if config.Rules.DiskEnabled {
 			s.checkAlert(ctx, &config, &agent, "disk", disk, config.Rules.DiskThreshold, config.Rules.DiskDuration, now)
+		}
+
+		// 检查网速告警
+		if config.Rules.NetworkEnabled {
+			s.checkAlert(ctx, &config, &agent, "network", networkSpeed, config.Rules.NetworkThreshold, config.Rules.NetworkDuration, now)
 		}
 	}
 
@@ -298,7 +303,11 @@ func (s *AlertService) buildAlertMessage(state *models.AlertState) string {
 	case "disk":
 		alertTypeName = "磁盘使用率"
 	case "network":
-		alertTypeName = "网络连接"
+		return fmt.Sprintf("网速持续%d秒超过%.2fMB/s，当前值%.2fMB/s",
+			state.Duration,
+			state.Threshold,
+			state.Value,
+		)
 	case "cert":
 		return fmt.Sprintf("HTTPS证书剩余天数%.0f天，低于阈值%.0f天", state.Value, state.Threshold)
 	case "service":

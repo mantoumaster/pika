@@ -41,6 +41,7 @@ const AlertSettings = () => {
                     diskThreshold: 85,
                     diskDuration: 60,
                     networkEnabled: false,
+                    networkThreshold: 100,
                     networkDuration: 60,
                     certEnabled: true,
                     certThreshold: 30,
@@ -103,9 +104,10 @@ const AlertSettings = () => {
                     {/*<Divider orientation="left">告警规则</Divider>*/}
 
                     {[
-                        {key: 'cpu', title: 'CPU 告警规则', thresholdLabel: 'CPU 使用率阈值 (%)'},
-                        {key: 'memory', title: '内存告警规则', thresholdLabel: '内存使用率阈值 (%)'},
-                        {key: 'disk', title: '磁盘告警规则', thresholdLabel: '磁盘使用率阈值 (%)'},
+                        {key: 'cpu', title: 'CPU 告警规则', thresholdLabel: 'CPU 使用率阈值 (%)', max: 100},
+                        {key: 'memory', title: '内存告警规则', thresholdLabel: '内存使用率阈值 (%)', max: 100},
+                        {key: 'disk', title: '磁盘告警规则', thresholdLabel: '磁盘使用率阈值 (%)', max: 100},
+                        {key: 'network', title: '网速告警规则', thresholdLabel: '网速阈值 (MB/s)', max: 10000},
                     ].map((rule) => (
                         <Card key={rule.key} title={rule.title} type="inner">
                             <Form.Item noStyle shouldUpdate>
@@ -128,7 +130,7 @@ const AlertSettings = () => {
                                             >
                                                 <InputNumber
                                                     min={0}
-                                                    max={100}
+                                                    max={rule.max}
                                                     style={{width: '100%'}}
                                                     disabled={!enabled}
                                                 />

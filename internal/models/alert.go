@@ -30,9 +30,10 @@ type AlertRules struct {
 	DiskThreshold float64 `json:"diskThreshold"` // 磁盘使用率阈值(0-100)
 	DiskDuration  int     `json:"diskDuration"`  // 持续时间（秒）
 
-	// 网络断开告警配置
-	NetworkEnabled  bool `json:"networkEnabled"`  // 是否启用网络断开告警
-	NetworkDuration int  `json:"networkDuration"` // 持续时间（秒）
+	// 网络告警配置
+	NetworkEnabled   bool    `json:"networkEnabled"`   // 是否启用网络告警
+	NetworkThreshold float64 `json:"networkThreshold"` // 网速阈值(MB/s)
+	NetworkDuration  int     `json:"networkDuration"`  // 持续时间（秒）
 
 	// HTTPS 证书告警配置
 	CertEnabled   bool    `json:"certEnabled"`   // 是否启用证书告警

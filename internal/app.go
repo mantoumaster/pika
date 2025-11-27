@@ -358,8 +358,8 @@ func startMetricsMonitoring(ctx context.Context, components *AppComponents, logg
 					continue
 				}
 
-				// 提取 CPU、内存、磁盘使用率
-				var cpuUsage, memoryUsage, diskUsage float64
+				// 提取 CPU、内存、磁盘使用率、网速
+				var cpuUsage, memoryUsage, diskUsage, networkSpeed float64
 
 				if latest.CPU != nil {
 					cpuUsage = latest.CPU.UsagePercent
@@ -373,8 +373,13 @@ func startMetricsMonitoring(ctx context.Context, components *AppComponents, logg
 					diskUsage = latest.Disk.AvgUsagePercent
 				}
 
+				if latest.Network != nil {
+					// 网速 = (发送速率 + 接收速率) / 1024 / 1024 (转换为 MB/s)
+					networkSpeed = float64(latest.Network.TotalBytesSentRate+latest.Network.TotalBytesRecvRate) / 1024 / 1024
+				}
+
 				// 检查告警规则
-				if err := components.AlertService.CheckMetrics(ctx, agent.ID, cpuUsage, memoryUsage, diskUsage); err != nil {
+				if err := components.AlertService.CheckMetrics(ctx, agent.ID, cpuUsage, memoryUsage, diskUsage, networkSpeed); err != nil {
 					logger.Error("检查告警规则失败", zap.String("agentId", agent.ID), zap.Error(err))
 				}
 			}

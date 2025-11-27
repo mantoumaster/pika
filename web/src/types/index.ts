@@ -406,6 +406,7 @@ export interface AlertRules {
     diskThreshold: number;
     diskDuration: number;
     networkEnabled: boolean;
+    networkThreshold: number;  // 网速阈值(MB/s)
     networkDuration: number;
     certEnabled: boolean;      // HTTPS 证书告警开关
     certThreshold: number;     // 证书剩余天数阈值（天）
