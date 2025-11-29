@@ -20,7 +20,7 @@ const SystemConfigComponent = () => {
         queryFn: getSystemConfig,
     });
 
-    // 保存 mutation
+    // 保存系统配置 mutation
     const saveMutation = useMutation({
         mutationFn: saveSystemConfig,
         onSuccess: () => {
@@ -34,7 +34,7 @@ const SystemConfigComponent = () => {
         },
     });
 
-    // 初始化表单值
+    // 初始化系统配置表单
     useEffect(() => {
         if (config) {
             form.setFieldsValue({

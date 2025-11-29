@@ -58,15 +58,6 @@ export interface AggregatedNetworkMetric {
     interface: string;
     maxSentRate: number;
     maxRecvRate: number;
-    totalSent: number;
-    totalRecv: number;
-}
-
-export interface AggregatedLoadMetric {
-    timestamp: number;
-    maxLoad1: number;
-    maxLoad5: number;
-    maxLoad15: number;
 }
 
 export interface AggregatedDiskMetric {
@@ -138,15 +129,6 @@ export interface MemoryMetric {
     swapTotal: number;
     swapUsed: number;
     swapFree: number;
-}
-
-export interface LoadMetric {
-    id: string;
-    agentId: string;
-    timestamp: number;
-    load1: number;
-    load5: number;
-    load15: number;
 }
 
 // 磁盘汇总数据
@@ -405,7 +387,6 @@ export interface LatestMetrics {
     disk?: DiskSummary;       // 改为汇总数据
     network?: NetworkSummary; // 改为汇总数据
     networkConnection?: NetworkConnectionMetric; // 网络连接统计
-    load?: LoadMetric;
     host?: HostMetric;        // 主机信息
     gpu?: GPUMetric[];        // GPU 列表
     temperature?: TemperatureMetric[];  // 温度传感器列表

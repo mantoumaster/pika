@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/dushixiang/pika/internal/models"
@@ -15,6 +16,19 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	defaultMetricsRetentionHours = 24 * 7 // 默认保留 7 天
+	defaultMaxQueryPoints        = 720    // 默认最多返回 720 个点
+)
+
+var allowedIntervals = []int{
+	1, 2, 5,
+	10, 15, 30,
+	60, 120, 300,
+	600, 900, 1800,
+	3600, 7200, 14400,
+}
+
 type AgentService struct {
 	logger *zap.Logger
 	*orz.Service
@@ -22,9 +36,10 @@ type AgentService struct {
 	metricRepo       *repo.MetricRepo
 	monitorStatsRepo *repo.MonitorStatsRepo
 	apiKeyService    *ApiKeyService
+	propertyService  *PropertyService
 }
 
-func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyService) *AgentService {
+func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyService, propertyService *PropertyService) *AgentService {
 	return &AgentService{
 		logger:           logger,
 		Service:          orz.NewService(db),
@@ -32,6 +47,7 @@ func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyServi
 		metricRepo:       repo.NewMetricRepo(db),
 		monitorStatsRepo: repo.NewMonitorStatsRepo(db),
 		apiKeyService:    apiKeyService,
+		propertyService:  propertyService,
 	}
 }
 
@@ -246,20 +262,6 @@ func (s *AgentService) HandleMetricData(ctx context.Context, agentID string, met
 		}
 		return s.metricRepo.SaveNetworkConnectionMetric(ctx, metric)
 
-	case protocol.MetricTypeLoad:
-		var loadData protocol.LoadData
-		if err := json.Unmarshal(data, &loadData); err != nil {
-			return err
-		}
-		metric := &models.LoadMetric{
-			AgentID:   agentID,
-			Load1:     loadData.Load1,
-			Load5:     loadData.Load5,
-			Load15:    loadData.Load15,
-			Timestamp: now,
-		}
-		return s.metricRepo.SaveLoadMetric(ctx, metric)
-
 	case protocol.MetricTypeDiskIO:
 		// DiskIO现在是数组,需要批量处理
 		var diskIODataList []*protocol.DiskIOData
@@ -424,26 +426,96 @@ func CalculateInterval(start, end int64) int {
 	}
 }
 
-// GetMetrics 获取聚合指标数据
+// GetMetrics 获取聚合指标数据（自动路由到聚合表或原始表）
 func (s *AgentService) GetMetrics(ctx context.Context, agentID, metricType string, start, end int64, interval int) (interface{}, error) {
+	start, end = s.normalizeTimeRange(ctx, start, end)
+	interval = s.DetermineInterval(ctx, start, end, interval)
+
+	// 判断是否可以使用聚合表（仅支持部分指标类型）
+	aggCapable := map[string]bool{
+		"cpu":                true,
+		"memory":             true,
+		"disk":               true,
+		"network":            true,
+		"network_connection": true,
+		"disk_io":            true,
+		"gpu":                true,
+		"temperature":        true,
+	}
+
+	// 智能选择聚合粒度：根据查询间隔选择最合适的bucket
+	// 例如：查询90秒数据时使用60秒bucket，查询600秒数据时使用300秒bucket
+	var bucketSeconds int
+	useAgg := false
+	if aggCapable[metricType] {
+		if interval >= 3600 {
+			bucketSeconds = 3600
+			useAgg = true
+		} else if interval >= 300 {
+			bucketSeconds = 300
+			useAgg = true
+		} else if interval >= 60 {
+			bucketSeconds = 60
+			useAgg = true
+		}
+	}
+
 	switch metricType {
 	case "cpu":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetCPUMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetCPUMetrics(ctx, agentID, start, end, interval)
 	case "memory":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetMemoryMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetMemoryMetrics(ctx, agentID, start, end, interval)
 	case "disk":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetDiskMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetDiskMetrics(ctx, agentID, start, end, interval)
 	case "network":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetNetworkMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetNetworkMetrics(ctx, agentID, start, end, interval)
 	case "network_connection":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetNetworkConnectionMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetNetworkConnectionMetrics(ctx, agentID, start, end, interval)
-	case "load":
-		return s.metricRepo.GetLoadMetrics(ctx, agentID, start, end, interval)
 	case "disk_io":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetDiskIOMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetDiskIOMetrics(ctx, agentID, start, end, interval)
 	case "gpu":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetGPUMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetGPUMetrics(ctx, agentID, start, end, interval)
 	case "temperature":
+		if useAgg {
+			if metrics, err := s.metricRepo.GetTemperatureMetricsAgg(ctx, agentID, start, end, bucketSeconds); err == nil && len(metrics) > 0 {
+				return metrics, nil
+			}
+		}
 		return s.metricRepo.GetTemperatureMetrics(ctx, agentID, start, end, interval)
 	default:
 		return nil, nil
@@ -452,7 +524,185 @@ func (s *AgentService) GetMetrics(ctx context.Context, agentID, metricType strin
 
 // GetNetworkMetricsByInterface 获取按网卡接口分组的网络指标
 func (s *AgentService) GetNetworkMetricsByInterface(ctx context.Context, agentID string, start, end int64, interval int) (interface{}, error) {
+	start, end = s.normalizeTimeRange(ctx, start, end)
+	interval = s.DetermineInterval(ctx, start, end, interval)
 	return s.metricRepo.GetNetworkMetricsByInterface(ctx, agentID, start, end, interval)
+}
+
+// DetermineInterval 根据配置、用户请求和时间范围决定聚合粒度
+func (s *AgentService) DetermineInterval(ctx context.Context, start, end int64, requested int) int {
+	cfg := s.getMetricsConfig(ctx)
+
+	interval := requested
+	if interval <= 0 {
+		interval = calculateBaseInterval(start, end)
+	}
+
+	interval = adjustIntervalForMaxPoints(start, end, interval, cfg.MaxQueryPoints)
+	return interval
+}
+
+// normalizeTimeRange 将时间范围限制在保留周期内，避免无意义的全表扫描
+func (s *AgentService) normalizeTimeRange(ctx context.Context, start, end int64) (int64, int64) {
+	cfg := s.getMetricsConfig(ctx)
+	retentionDuration := time.Duration(cfg.RetentionHours) * time.Hour
+
+	retentionBoundary := time.Now().Add(-retentionDuration).UnixMilli()
+	if start < retentionBoundary {
+		start = retentionBoundary
+	}
+	if end <= start {
+		end = start + 1000
+	}
+	return start, end
+}
+
+// 默认间隔选择（保留旧行为的同时限制最大数据点）
+func defaultIntervalWithLimit(start, end int64) int {
+	base := calculateBaseInterval(start, end)
+	return adjustIntervalForMaxPoints(start, end, base, defaultMaxQueryPoints)
+}
+
+func calculateBaseInterval(start, end int64) int {
+	duration := (end - start) / 1000 // 秒
+
+	switch {
+	case duration <= 60: // 1 分钟内
+		return 2
+	case duration <= 5*60: // 5 分钟内
+		return 5
+	case duration <= 15*60: // 15 分钟内
+		return 15
+	case duration <= 30*60: // 30 分钟内
+		return 30
+	case duration <= 60*60: // 1 小时内
+		return 60
+	case duration <= 3*60*60: // 3 小时内
+		return 180
+	case duration <= 6*60*60: // 6 小时内
+		return 300
+	case duration <= 12*60*60: // 12 小时内
+		return 600
+	case duration <= 24*60*60: // 1 天内
+		return 900
+	case duration <= 3*24*60*60: // 3 天内
+		return 1800
+	case duration <= 7*24*60*60: // 7 天内
+		return 3600
+	case duration <= 14*24*60*60: // 14 天内
+		return 7200
+	default:
+		return 14400 // 更长时间：4 小时粒度
+	}
+}
+
+// adjustIntervalForMaxPoints 根据最大数据点限制提升聚合粒度
+func adjustIntervalForMaxPoints(start, end int64, interval int, maxPoints int) int {
+	if interval <= 0 {
+		interval = 1
+	}
+	if maxPoints <= 0 {
+		return alignInterval(interval)
+	}
+
+	durationSeconds := float64(end-start) / 1000
+	if durationSeconds <= 0 {
+		return alignInterval(interval)
+	}
+
+	required := int(math.Ceil(durationSeconds / float64(maxPoints)))
+	interval = maxInt(interval, required)
+	return alignInterval(interval)
+}
+
+func alignInterval(interval int) int {
+	for _, candidate := range allowedIntervals {
+		if interval <= candidate {
+			return candidate
+		}
+	}
+	return allowedIntervals[len(allowedIntervals)-1]
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (s *AgentService) getMetricsConfig(ctx context.Context) models.MetricsConfig {
+	cfg := models.MetricsConfig{
+		RetentionHours: defaultMetricsRetentionHours,
+		MaxQueryPoints: defaultMaxQueryPoints,
+	}
+
+	if s.propertyService == nil {
+		return cfg
+	}
+
+	loaded := s.propertyService.GetMetricsConfig(ctx)
+	if loaded.RetentionHours > 0 {
+		cfg.RetentionHours = loaded.RetentionHours
+	}
+	if loaded.MaxQueryPoints > 0 {
+		cfg.MaxQueryPoints = loaded.MaxQueryPoints
+	}
+	return cfg
+}
+
+// runAggregation 按固定 bucket 下采样存储
+func (s *AgentService) runAggregation(ctx context.Context) {
+	cfg := s.getMetricsConfig(ctx)
+	retention := time.Duration(cfg.RetentionHours) * time.Hour
+	// 标准 bucket：1m、5m、1h
+	buckets := []int{60, 300, 3600}
+
+	for _, bucket := range buckets {
+		s.aggregateMetric(ctx, "cpu", bucket, retention, s.metricRepo.AggregateCPUToAgg)
+		s.aggregateMetric(ctx, "memory", bucket, retention, s.metricRepo.AggregateMemoryToAgg)
+		s.aggregateMetric(ctx, "disk", bucket, retention, s.metricRepo.AggregateDiskToAgg)
+		s.aggregateMetric(ctx, "network", bucket, retention, s.metricRepo.AggregateNetworkToAgg)
+		s.aggregateMetric(ctx, "network_connection", bucket, retention, s.metricRepo.AggregateNetworkConnectionToAgg)
+		s.aggregateMetric(ctx, "disk_io", bucket, retention, s.metricRepo.AggregateDiskIOToAgg)
+		s.aggregateMetric(ctx, "gpu", bucket, retention, s.metricRepo.AggregateGPUToAgg)
+		s.aggregateMetric(ctx, "temperature", bucket, retention, s.metricRepo.AggregateTemperatureToAgg)
+	}
+}
+
+type aggregateFn func(ctx context.Context, bucketSeconds int, start, end int64) error
+
+func (s *AgentService) aggregateMetric(ctx context.Context, metricType string, bucketSeconds int, retention time.Duration, fn aggregateFn) {
+	bucketMs := int64(bucketSeconds * 1000)
+
+	start := s.getAggregationStart(ctx, metricType, bucketSeconds, retention, bucketMs)
+	endBucket := (time.Now().Add(-time.Duration(bucketSeconds)*time.Second).UnixMilli() / bucketMs) * bucketMs
+
+	if endBucket <= start {
+		return
+	}
+
+	end := endBucket + bucketMs - 1
+
+	if err := fn(ctx, bucketSeconds, start, end); err != nil {
+		s.logger.Error("aggregate metric failed", zap.String("metricType", metricType), zap.Int("bucketSeconds", bucketSeconds), zap.Error(err))
+		return
+	}
+
+	if err := s.metricRepo.UpsertAggregationProgress(ctx, metricType, bucketSeconds, endBucket); err != nil {
+		s.logger.Error("update aggregation progress failed", zap.String("metricType", metricType), zap.Int("bucketSeconds", bucketSeconds), zap.Error(err))
+	}
+}
+
+func (s *AgentService) getAggregationStart(ctx context.Context, metricType string, bucketSeconds int, retention time.Duration, bucketMs int64) int64 {
+	progress, err := s.metricRepo.GetAggregationProgress(ctx, metricType, bucketSeconds)
+	if err == nil && progress != nil && progress.LastBucket > 0 {
+		return progress.LastBucket + bucketMs
+	}
+
+	// 默认从保留窗口开始
+	start := time.Now().Add(-retention).UnixMilli()
+	return (start / bucketMs) * bucketMs
 }
 
 // GetLatestMetrics 获取最新指标
@@ -507,11 +757,6 @@ func (s *AgentService) GetLatestMetrics(ctx context.Context, agentID string) (*L
 		}
 	}
 
-	// 获取最新负载信息
-	if load, err := s.metricRepo.GetLatestLoadMetric(ctx, agentID); err == nil {
-		result.Load = load
-	}
-
 	// 获取最新主机信息
 	if host, err := s.metricRepo.GetLatestHostMetric(ctx, agentID); err == nil {
 		result.Host = host
@@ -555,10 +800,11 @@ func (s *AgentService) StartCleanupTask(ctx context.Context) {
 
 // cleanupOldMetrics 清理旧数据
 func (s *AgentService) cleanupOldMetrics(ctx context.Context) {
-	// 删除1小时前的数据
-	before := time.Now().Add(-1 * time.Hour).UnixMilli()
+	cfg := s.getMetricsConfig(ctx)
+	retentionDuration := time.Duration(cfg.RetentionHours) * time.Hour
+	before := time.Now().Add(-retentionDuration).UnixMilli()
 
-	s.logger.Info("starting to clean old metrics", zap.Int64("beforeTimestamp", before))
+	s.logger.Info("starting to clean old metrics", zap.Int64("beforeTimestamp", before), zap.Int("retentionHours", cfg.RetentionHours))
 
 	if err := s.metricRepo.DeleteOldMetrics(ctx, before); err != nil {
 		s.logger.Error("failed to clean old metrics", zap.Error(err))
@@ -566,6 +812,24 @@ func (s *AgentService) cleanupOldMetrics(ctx context.Context) {
 	}
 
 	s.logger.Info("old metrics cleaned successfully")
+}
+
+// StartAggregationTask 启动聚合下采样任务
+func (s *AgentService) StartAggregationTask(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	s.logger.Info("aggregation task started")
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Info("aggregation task stopped")
+			return
+		case <-ticker.C:
+			s.runAggregation(ctx)
+		}
+	}
 }
 
 // DiskSummary 磁盘汇总数据
@@ -593,7 +857,6 @@ type LatestMetrics struct {
 	Disk              *DiskSummary                    `json:"disk,omitempty"`
 	Network           *NetworkSummary                 `json:"network,omitempty"`
 	NetworkConnection *models.NetworkConnectionMetric `json:"networkConnection,omitempty"`
-	Load              *models.LoadMetric              `json:"load,omitempty"`
 	Host              *models.HostMetric              `json:"host,omitempty"`
 	GPU               []models.GPUMetric              `json:"gpu,omitempty"`
 	Temp              []models.TemperatureMetric      `json:"temperature,omitempty"`

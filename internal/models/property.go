@@ -48,3 +48,9 @@ type SystemConfig struct {
 	ICPCode      string `json:"icpCode"`      // ICP备案号
 	DefaultView  string `json:"defaultView"`  // 默认视图 grid | list
 }
+
+// MetricsConfig 指标数据配置
+type MetricsConfig struct {
+	RetentionHours int `json:"retentionHours"` // 原始数据保留小时数（默认168小时=7天）
+	MaxQueryPoints int `json:"maxQueryPoints"` // 查询返回的最大数据点数（默认720）
+}

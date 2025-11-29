@@ -354,33 +354,8 @@ func (h *AgentHandler) GetForAdmin(c echo.Context) error {
 	return orz.Ok(c, agent)
 }
 
-// GetMetrics 获取探针聚合指标（公开接口，已登录返回全部，未登录返回公开可见）
-func (h *AgentHandler) GetMetrics(c echo.Context) error {
-	agentID := c.Param("id")
-	ctx := c.Request().Context()
-
-	// 验证探针访问权限
-	if _, err := h.agentService.GetAgentByAuth(ctx, agentID, utils.IsAuthenticated(c)); err != nil {
-		return err
-	}
-
-	metricType := c.QueryParam("type")
-	rangeParam := c.QueryParam("range")
-
-	// 验证指标类型
-	validTypes := map[string]bool{
-		"cpu": true, "memory": true, "disk": true, "network": true, "network_connection": true, "load": true,
-		"disk_io": true, "gpu": true, "temperature": true,
-	}
-	if metricType == "" {
-		return orz.NewError(400, "指标类型不能为空")
-	}
-	if !validTypes[metricType] {
-		return orz.NewError(400, "无效的指标类型")
-	}
-
-	// 根据 range 参数自动计算时间范围
-	var start, end int64
+// parseTimeRange 解析时间范围参数，返回起始和结束时间（毫秒）
+func parseTimeRange(rangeParam string) (start, end int64, err error) {
 	end = time.Now().UnixMilli()
 
 	if rangeParam == "" {
@@ -398,8 +373,56 @@ func (h *AgentHandler) GetMetrics(c echo.Context) error {
 		start = end - 30*60*1000
 	case "1h":
 		start = end - 60*60*1000
+	case "3h":
+		start = end - 3*60*60*1000
+	case "6h":
+		start = end - 6*60*60*1000
+	case "12h":
+		start = end - 12*60*60*1000
+	case "1d", "24h":
+		start = end - 24*60*60*1000
+	case "3d":
+		start = end - 3*24*60*60*1000
+	case "7d":
+		start = end - 7*24*60*60*1000
+	case "30d":
+		start = end - 30*24*60*60*1000
 	default:
-		return orz.NewError(400, "无效的时间范围，支持: 1m, 5m, 15m, 30m, 1h")
+		return 0, 0, fmt.Errorf("无效的时间范围，支持: 1m, 5m, 15m, 30m, 1h, 3h, 6h, 12h, 1d/24h, 3d, 7d, 30d")
+	}
+
+	return start, end, nil
+}
+
+// GetMetrics 获取探针聚合指标（公开接口，已登录返回全部，未登录返回公开可见）
+func (h *AgentHandler) GetMetrics(c echo.Context) error {
+	agentID := c.Param("id")
+	ctx := c.Request().Context()
+
+	// 验证探针访问权限
+	if _, err := h.agentService.GetAgentByAuth(ctx, agentID, utils.IsAuthenticated(c)); err != nil {
+		return err
+	}
+
+	metricType := c.QueryParam("type")
+	rangeParam := c.QueryParam("range")
+
+	// 验证指标类型
+	validTypes := map[string]bool{
+		"cpu": true, "memory": true, "disk": true, "network": true, "network_connection": true,
+		"disk_io": true, "gpu": true, "temperature": true,
+	}
+	if metricType == "" {
+		return orz.NewError(400, "指标类型不能为空")
+	}
+	if !validTypes[metricType] {
+		return orz.NewError(400, "无效的指标类型")
+	}
+
+	// 解析时间范围
+	start, end, err := parseTimeRange(rangeParam)
+	if err != nil {
+		return orz.NewError(400, err.Error())
 	}
 
 	// 服务端自动计算最优聚合间隔
@@ -433,27 +456,10 @@ func (h *AgentHandler) GetNetworkMetricsByInterface(c echo.Context) error {
 
 	rangeParam := c.QueryParam("range")
 
-	// 根据 range 参数自动计算时间范围
-	var start, end int64
-	end = time.Now().UnixMilli()
-
-	if rangeParam == "" {
-		rangeParam = "1h" // 默认1小时
-	}
-
-	switch rangeParam {
-	case "1m":
-		start = end - 1*60*1000
-	case "5m":
-		start = end - 5*60*1000
-	case "15m":
-		start = end - 15*60*1000
-	case "30m":
-		start = end - 30*60*1000
-	case "1h":
-		start = end - 60*60*1000
-	default:
-		return orz.NewError(400, "无效的时间范围，支持: 1m, 5m, 15m, 30m, 1h")
+	// 解析时间范围
+	start, end, err := parseTimeRange(rangeParam)
+	if err != nil {
+		return orz.NewError(400, err.Error())
 	}
 
 	// 服务端自动计算最优聚合间隔
@@ -701,27 +707,10 @@ func (h *AgentHandler) GetMonitorMetrics(c echo.Context) error {
 	rangeParam := c.QueryParam("range")
 	ctx := c.Request().Context()
 
-	// 根据 range 参数自动计算时间范围
-	var start, end int64
-	end = time.Now().UnixMilli()
-
-	if rangeParam == "" {
-		rangeParam = "1h" // 默认1小时
-	}
-
-	switch rangeParam {
-	case "1m":
-		start = end - 1*60*1000
-	case "5m":
-		start = end - 5*60*1000
-	case "15m":
-		start = end - 15*60*1000
-	case "30m":
-		start = end - 30*60*1000
-	case "1h":
-		start = end - 60*60*1000
-	default:
-		return orz.NewError(400, "无效的时间范围，支持: 1m, 5m, 15m, 30m, 1h")
+	// 解析时间范围
+	start, end, err := parseTimeRange(rangeParam)
+	if err != nil {
+		return orz.NewError(400, err.Error())
 	}
 
 	metrics, err := h.agentService.GetMonitorMetrics(ctx, agentID, monitorName, start, end)

@@ -20,7 +20,6 @@ type Manager struct {
 	diskIOCollector            *DiskIOCollector
 	networkCollector           *NetworkCollector
 	networkConnectionCollector *NetworkConnectionCollector
-	loadCollector              *LoadCollector
 	hostCollector              *HostCollector
 	temperatureCollector       *TemperatureCollector
 	gpuCollector               *GPUCollector
@@ -36,7 +35,6 @@ func NewManager(cfg *config.Config) *Manager {
 		diskIOCollector:            NewDiskIOCollector(),
 		networkCollector:           NewNetworkCollector(cfg),
 		networkConnectionCollector: NewNetworkConnectionCollector(),
-		loadCollector:              NewLoadCollector(),
 		hostCollector:              NewHostCollector(),
 		temperatureCollector:       NewTemperatureCollector(),
 		gpuCollector:               NewGPUCollector(),
@@ -98,15 +96,6 @@ func (m *Manager) CollectAndSendNetworkConnection(conn WebSocketWriter) error {
 		return err
 	}
 	return m.sendMetrics(conn, protocol.MetricTypeNetworkConnection, connectionData)
-}
-
-// CollectAndSendLoad 采集并发送系统负载指标
-func (m *Manager) CollectAndSendLoad(conn WebSocketWriter) error {
-	loadData, err := m.loadCollector.Collect()
-	if err != nil {
-		return err
-	}
-	return m.sendMetrics(conn, protocol.MetricTypeLoad, loadData)
 }
 
 // CollectAndSendHost 采集并发送主机信息

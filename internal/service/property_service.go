@@ -19,6 +19,8 @@ const (
 	PropertyIDNotificationChannels = "notification_channels"
 	// PropertyIDSystemConfig 系统配置的固定 ID
 	PropertyIDSystemConfig = "system_config"
+	// PropertyIDMetricsConfig 指标配置的固定 ID
+	PropertyIDMetricsConfig = "metrics_config"
 )
 
 type PropertyService struct {
@@ -123,6 +125,22 @@ func (s *PropertyService) GetSystemConfig(ctx context.Context) (*models.SystemCo
 	return &systemConfig, nil
 }
 
+// GetMetricsConfig 获取指标配置
+func (s *PropertyService) GetMetricsConfig(ctx context.Context) models.MetricsConfig {
+	var config models.MetricsConfig
+	err := s.GetValue(ctx, PropertyIDMetricsConfig, &config)
+	if err != nil {
+		// 返回默认配置
+		return models.MetricsConfig{}
+	}
+	return config
+}
+
+// SetMetricsConfig 设置指标配置
+func (s *PropertyService) SetMetricsConfig(ctx context.Context, config models.MetricsConfig) error {
+	return s.Set(ctx, PropertyIDMetricsConfig, "指标数据配置", config)
+}
+
 // defaultPropertyConfig 默认配置项定义
 type defaultPropertyConfig struct {
 	ID    string
@@ -149,6 +167,14 @@ func (s *PropertyService) InitializeDefaultConfigs(ctx context.Context) error {
 			ID:    PropertyIDNotificationChannels,
 			Name:  "通知渠道配置",
 			Value: []models.NotificationChannelConfig{},
+		},
+		{
+			ID:   PropertyIDMetricsConfig,
+			Name: "指标数据配置",
+			Value: models.MetricsConfig{
+				RetentionHours: 168, // 默认7天
+				MaxQueryPoints: 720, // 默认720个点
+			},
 		},
 	}
 

@@ -94,6 +94,12 @@ const timeRangeOptions = [
     {label: '15分钟', value: '15m'},
     {label: '30分钟', value: '30m'},
     {label: '1小时', value: '1h'},
+    {label: '3小时', value: '3h'},
+    {label: '6小时', value: '6h'},
+    {label: '12小时', value: '12h'},
+    {label: '1天', value: '1d'},
+    {label: '3天', value: '3d'},
+    {label: '7天', value: '7d'},
 ] as const;
 
 type TimeRange = typeof timeRangeOptions[number]['value'];
@@ -230,9 +236,9 @@ const TimeRangeSelector = ({
                     key={option.value}
                     type="button"
                     onClick={() => onChange(option.value)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                    className={`rounded-lg border px-3 py-1.5 text-xs sm:text-sm font-medium transition whitespace-nowrap ${
                         isActive
-                            ? 'border-blue-200 dark:border-blue-400 bg-blue-600 dark:bg-blue-500 text-white'
+                            ? 'border-blue-200 dark:border-blue-400 bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
                             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-200 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-200'
                     }`}
                 >
@@ -744,19 +750,19 @@ const ServerDetail = () => {
         });
 
         cards.push({
-            key: 'load',
-            icon: Activity,
-            title: '系统负载',
-            usagePercent: latestMetrics.load
-                ? `${latestMetrics.load.load1.toFixed(2)}`
+            key: 'network',
+            icon: Network,
+            title: '网络流量',
+            usagePercent: latestMetrics.network
+                ? `${formatBytes(latestMetrics.network.totalBytesSentRate)}/s`
                 : '—',
             accent: 'amber',
             metrics: [
                 {
-                    label: '1 / 5 / 15 分钟',
-                    value: latestMetrics.load
-                        ? `${latestMetrics.load.load1.toFixed(2)} / ${latestMetrics.load.load5.toFixed(2)} / ${latestMetrics.load.load15.toFixed(2)}`
-                        : '-',
+                    label: '上行 / 下行',
+                    value: `${formatBytes(latestMetrics.network?.totalBytesSentRate)}/s ↑ / ${formatBytes(
+                        latestMetrics.network?.totalBytesRecvRate,
+                    )}/s ↓`,
                 },
                 {
                     label: '网络累计',

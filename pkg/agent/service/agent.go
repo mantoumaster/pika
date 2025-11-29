@@ -482,12 +482,6 @@ func (a *Agent) collectAndSendAllMetrics(conn *safeConn, manager *collector.Mana
 		hasError = true
 	}
 
-	// 系统负载指标
-	if err := manager.CollectAndSendLoad(conn); err != nil {
-		log.Printf("⚠️  发送负载指标失败: %v", err)
-		hasError = true
-	}
-
 	// 主机信息
 	if err := manager.CollectAndSendHost(conn); err != nil {
 		log.Printf("⚠️  发送主机信息失败: %v", err)

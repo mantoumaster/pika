@@ -88,20 +88,6 @@ func (NetworkConnectionMetric) TableName() string {
 	return "network_connection_metrics"
 }
 
-// LoadMetric 系统负载指标
-type LoadMetric struct {
-	ID        uint    `gorm:"primaryKey;autoIncrement" json:"id"`
-	AgentID   string  `gorm:"index:idx_load_agent_ts,priority:1" json:"agentId"`                     // 探针ID
-	Load1     float64 `json:"load1"`                                                                 // 1分钟负载
-	Load5     float64 `json:"load5"`                                                                 // 5分钟负载
-	Load15    float64 `json:"load15"`                                                                // 15分钟负载
-	Timestamp int64   `gorm:"index:idx_load_agent_ts,priority:2;index:idx_load_ts" json:"timestamp"` // 时间戳（毫秒）
-}
-
-func (LoadMetric) TableName() string {
-	return "load_metrics"
-}
-
 // DiskIOMetric 磁盘IO指标
 type DiskIOMetric struct {
 	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
@@ -198,4 +184,151 @@ type MonitorMetric struct {
 
 func (MonitorMetric) TableName() string {
 	return "monitor_metrics"
+}
+
+// ----------- 聚合表 -----------
+
+// AggregatedCPUMetricModel CPU聚合表
+type AggregatedCPUMetricModel struct {
+	ID            uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID       string  `gorm:"index:idx_cpuagg_agent_bucket,priority:1;uniqueIndex:ux_cpuagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds int     `gorm:"index:idx_cpuagg_agent_bucket,priority:2;uniqueIndex:ux_cpuagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart   int64   `gorm:"index:idx_cpuagg_agent_bucket,priority:3;uniqueIndex:ux_cpuagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	MaxUsage      float64 `json:"maxUsage"`
+	LogicalCores  int     `json:"logicalCores"`
+}
+
+func (AggregatedCPUMetricModel) TableName() string {
+	return "cpu_metrics_aggs"
+}
+
+// AggregatedMemoryMetricModel 内存聚合表
+type AggregatedMemoryMetricModel struct {
+	ID            uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID       string  `gorm:"index:idx_memagg_agent_bucket,priority:1;uniqueIndex:ux_memagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds int     `gorm:"index:idx_memagg_agent_bucket,priority:2;uniqueIndex:ux_memagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart   int64   `gorm:"index:idx_memagg_agent_bucket,priority:3;uniqueIndex:ux_memagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	MaxUsage      float64 `json:"maxUsage"`
+	Total         uint64  `json:"total"`
+}
+
+func (AggregatedMemoryMetricModel) TableName() string {
+	return "memory_metrics_aggs"
+}
+
+// AggregatedDiskMetricModel 磁盘聚合表
+type AggregatedDiskMetricModel struct {
+	ID            uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID       string  `gorm:"index:idx_diskagg_agent_bucket_mp,priority:1;uniqueIndex:ux_diskagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds int     `gorm:"index:idx_diskagg_agent_bucket_mp,priority:2;uniqueIndex:ux_diskagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart   int64   `gorm:"index:idx_diskagg_agent_bucket_mp,priority:3;uniqueIndex:ux_diskagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	MountPoint    string  `gorm:"index:idx_diskagg_agent_bucket_mp,priority:4;uniqueIndex:ux_diskagg_bucket,priority:4" json:"mountPoint"`
+	MaxUsage      float64 `json:"maxUsage"`
+	Total         uint64  `json:"total"`
+}
+
+func (AggregatedDiskMetricModel) TableName() string {
+	return "disk_metrics_aggs"
+}
+
+// AggregatedNetworkMetricModel 网络聚合表（按网卡分组）
+type AggregatedNetworkMetricModel struct {
+	ID            uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID       string  `gorm:"index:idx_netagg_agent_bucket_iface,priority:1;uniqueIndex:ux_netagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds int     `gorm:"index:idx_netagg_agent_bucket_iface,priority:2;uniqueIndex:ux_netagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart   int64   `gorm:"index:idx_netagg_agent_bucket_iface,priority:3;uniqueIndex:ux_netagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	Interface     string  `gorm:"index:idx_netagg_agent_bucket_iface,priority:4;uniqueIndex:ux_netagg_bucket,priority:4" json:"interface"`
+	MaxSentRate   float64 `json:"maxSentRate"`
+	MaxRecvRate   float64 `json:"maxRecvRate"`
+}
+
+func (AggregatedNetworkMetricModel) TableName() string {
+	return "network_metrics_aggs"
+}
+
+// AggregatedNetworkConnectionMetricModel 网络连接聚合表
+type AggregatedNetworkConnectionMetricModel struct {
+	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID        string `gorm:"index:idx_netconnagg_agent_bucket,priority:1;uniqueIndex:ux_netconnagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds  int    `gorm:"index:idx_netconnagg_agent_bucket,priority:2;uniqueIndex:ux_netconnagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart    int64  `gorm:"index:idx_netconnagg_agent_bucket,priority:3;uniqueIndex:ux_netconnagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	MaxEstablished uint32 `json:"maxEstablished"`
+	MaxSynSent     uint32 `json:"maxSynSent"`
+	MaxSynRecv     uint32 `json:"maxSynRecv"`
+	MaxFinWait1    uint32 `json:"maxFinWait1"`
+	MaxFinWait2    uint32 `json:"maxFinWait2"`
+	MaxTimeWait    uint32 `json:"maxTimeWait"`
+	MaxClose       uint32 `json:"maxClose"`
+	MaxCloseWait   uint32 `json:"maxCloseWait"`
+	MaxLastAck     uint32 `json:"maxLastAck"`
+	MaxListen      uint32 `json:"maxListen"`
+	MaxClosing     uint32 `json:"maxClosing"`
+	MaxTotal       uint32 `json:"maxTotal"`
+}
+
+func (AggregatedNetworkConnectionMetricModel) TableName() string {
+	return "network_connection_metrics_aggs"
+}
+
+// AggregatedDiskIOMetricModel 磁盘IO聚合表
+type AggregatedDiskIOMetricModel struct {
+	ID                uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID           string `gorm:"index:idx_diskioagg_agent_bucket_dev,priority:1;uniqueIndex:ux_diskioagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds     int    `gorm:"index:idx_diskioagg_agent_bucket_dev,priority:2;uniqueIndex:ux_diskioagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart       int64  `gorm:"index:idx_diskioagg_agent_bucket_dev,priority:3;uniqueIndex:ux_diskioagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	Device            string `gorm:"index:idx_diskioagg_agent_bucket_dev,priority:4;uniqueIndex:ux_diskioagg_bucket,priority:4" json:"device"`
+	MaxReadBytesRate  uint64 `json:"maxReadBytesRate"`
+	MaxWriteBytesRate uint64 `json:"maxWriteBytesRate"`
+	MaxIopsInProgress uint64 `json:"maxIopsInProgress"`
+}
+
+func (AggregatedDiskIOMetricModel) TableName() string {
+	return "disk_io_metrics_aggs"
+}
+
+// AggregatedGPUMetricModel GPU聚合表
+type AggregatedGPUMetricModel struct {
+	ID             uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID        string  `gorm:"index:idx_gpuagg_agent_bucket_idx,priority:1;uniqueIndex:ux_gpuagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds  int     `gorm:"index:idx_gpuagg_agent_bucket_idx,priority:2;uniqueIndex:ux_gpuagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart    int64   `gorm:"index:idx_gpuagg_agent_bucket_idx,priority:3;uniqueIndex:ux_gpuagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	Index          int     `gorm:"index:idx_gpuagg_agent_bucket_idx,priority:4;uniqueIndex:ux_gpuagg_bucket,priority:4" json:"index"`
+	Name           string  `json:"name"`
+	MaxUtilization float64 `json:"maxUtilization"`
+	MaxMemoryUsed  uint64  `json:"maxMemoryUsed"`
+	MaxTemperature float64 `json:"maxTemperature"`
+	MaxPowerDraw   float64 `json:"maxPowerDraw"`
+	MemoryTotal    uint64  `json:"memoryTotal"`
+}
+
+func (AggregatedGPUMetricModel) TableName() string {
+	return "gpu_metrics_aggs"
+}
+
+// AggregatedTemperatureMetricModel 温度聚合表
+type AggregatedTemperatureMetricModel struct {
+	ID             uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	AgentID        string  `gorm:"index:idx_tempagg_agent_bucket_sensor,priority:1;uniqueIndex:ux_tempagg_bucket,priority:1" json:"agentId"`
+	BucketSeconds  int     `gorm:"index:idx_tempagg_agent_bucket_sensor,priority:2;uniqueIndex:ux_tempagg_bucket,priority:2" json:"bucketSeconds"`
+	BucketStart    int64   `gorm:"index:idx_tempagg_agent_bucket_sensor,priority:3;uniqueIndex:ux_tempagg_bucket,priority:3" json:"bucketStart"` // 毫秒
+	SensorKey      string  `gorm:"index:idx_tempagg_agent_bucket_sensor,priority:4;uniqueIndex:ux_tempagg_bucket,priority:4" json:"sensorKey"`
+	SensorLabel    string  `json:"sensorLabel"`
+	MaxTemperature float64 `json:"maxTemperature"`
+}
+
+func (AggregatedTemperatureMetricModel) TableName() string {
+	return "temperature_metrics_aggs"
+}
+
+// AggregationProgress 聚合进度记录
+type AggregationProgress struct {
+	MetricType    string `gorm:"primaryKey"` // cpu/memory/disk/network
+	BucketSeconds int    `gorm:"primaryKey"`
+	LastBucket    int64  `json:"lastBucket"` // 已完成的最后 bucket 起始时间（毫秒）
+	UpdatedAt     int64  `json:"updatedAt" gorm:"autoUpdateTime:milli"`
+	CreatedAt     int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+}
+
+func (AggregationProgress) TableName() string {
+	return "aggregation_progress"
 }

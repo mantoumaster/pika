@@ -3,30 +3,7 @@ package collector
 import (
 	"github.com/dushixiang/pika/internal/protocol"
 	"github.com/shirou/gopsutil/v4/host"
-	"github.com/shirou/gopsutil/v4/load"
 )
-
-// LoadCollector 系统负载监控采集器
-type LoadCollector struct{}
-
-// NewLoadCollector 创建负载采集器
-func NewLoadCollector() *LoadCollector {
-	return &LoadCollector{}
-}
-
-// Collect 采集系统负载数据
-func (l *LoadCollector) Collect() (*protocol.LoadData, error) {
-	avgStat, err := load.Avg()
-	if err != nil {
-		return nil, err
-	}
-
-	return &protocol.LoadData{
-		Load1:  avgStat.Load1,
-		Load5:  avgStat.Load5,
-		Load15: avgStat.Load15,
-	}, nil
-}
 
 // HostCollector 主机信息采集器
 type HostCollector struct{}

@@ -83,6 +83,9 @@ func setup(app *orz.App) error {
 	// 启动数据清理任务
 	go components.AgentService.StartCleanupTask(ctx)
 
+	// 启动聚合下采样任务
+	go components.AgentService.StartAggregationTask(ctx)
+
 	// 启动指标监控任务（用于告警检测）
 	go startMetricsMonitoring(ctx, components, app.Logger())
 
@@ -274,7 +277,6 @@ func autoMigrate(database *gorm.DB) error {
 		&models.DiskMetric{},
 		&models.NetworkMetric{},
 		&models.NetworkConnectionMetric{},
-		&models.LoadMetric{},
 		&models.DiskIOMetric{},
 		&models.GPUMetric{},
 		&models.TemperatureMetric{},
@@ -289,6 +291,16 @@ func autoMigrate(database *gorm.DB) error {
 		&models.TamperProtectConfig{},
 		&models.TamperEvent{},
 		&models.TamperAlert{},
+		// 聚合表
+		&models.AggregatedCPUMetricModel{},
+		&models.AggregatedMemoryMetricModel{},
+		&models.AggregatedDiskMetricModel{},
+		&models.AggregatedNetworkMetricModel{},
+		&models.AggregatedNetworkConnectionMetricModel{},
+		&models.AggregatedDiskIOMetricModel{},
+		&models.AggregatedGPUMetricModel{},
+		&models.AggregatedTemperatureMetricModel{},
+		&models.AggregationProgress{},
 	)
 }
 

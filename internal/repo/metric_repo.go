@@ -39,11 +39,6 @@ func (r *MetricRepo) SaveNetworkMetric(ctx context.Context, metric *models.Netwo
 	return r.db.WithContext(ctx).Create(metric).Error
 }
 
-// SaveLoadMetric 保存负载指标
-func (r *MetricRepo) SaveLoadMetric(ctx context.Context, metric *models.LoadMetric) error {
-	return r.db.WithContext(ctx).Create(metric).Error
-}
-
 // SaveDiskIOMetric 保存磁盘IO指标
 func (r *MetricRepo) SaveDiskIOMetric(ctx context.Context, metric *models.DiskIOMetric) error {
 	return r.db.WithContext(ctx).Create(metric).Error
@@ -202,7 +197,6 @@ func (r *MetricRepo) DeleteOldMetrics(ctx context.Context, beforeTimestamp int64
 		&models.DiskMetric{},
 		&models.NetworkMetric{},
 		&models.NetworkConnectionMetric{},
-		&models.LoadMetric{},
 		&models.DiskIOMetric{},
 		&models.GPUMetric{},
 		&models.TemperatureMetric{},
@@ -325,9 +319,10 @@ func (r *MetricRepo) GetDiskMetrics(ctx context.Context, agentID string, start, 
 	return metrics, err
 }
 
-// AggregatedNetworkMetric 网络聚合指标（使用最大值）
+// AggregatedNetworkMetric 网络聚合指标（按网卡分组）
 type AggregatedNetworkMetric struct {
 	Timestamp   int64   `json:"timestamp"`
+	Interface   string  `json:"interface"`
 	MaxSentRate float64 `json:"maxSentRate"`
 	MaxRecvRate float64 `json:"maxRecvRate"`
 }
@@ -377,38 +372,6 @@ func (r *MetricRepo) GetNetworkMetricsByInterface(ctx context.Context, agentID s
 		WHERE agent_id = ? AND timestamp >= ? AND timestamp <= ?
 		GROUP BY 1, interface
 		ORDER BY timestamp ASC, interface ASC
-	`
-
-	intervalMs := int64(interval * 1000)
-	err := r.db.WithContext(ctx).
-		Raw(query, intervalMs, intervalMs, agentID, start, end).
-		Scan(&metrics).Error
-
-	return metrics, err
-}
-
-// AggregatedLoadMetric 负载聚合指标（使用最大值）
-type AggregatedLoadMetric struct {
-	Timestamp int64   `json:"timestamp"`
-	MaxLoad1  float64 `json:"maxLoad1"`
-	MaxLoad5  float64 `json:"maxLoad5"`
-	MaxLoad15 float64 `json:"maxLoad15"`
-}
-
-// GetLoadMetrics 获取聚合后的负载指标（始终返回聚合数据）
-func (r *MetricRepo) GetLoadMetrics(ctx context.Context, agentID string, start, end int64, interval int) ([]AggregatedLoadMetric, error) {
-	var metrics []AggregatedLoadMetric
-
-	query := `
-		SELECT
-			CAST(FLOOR(timestamp / ?) * ? AS BIGINT) as timestamp,
-			MAX(load1) as max_load1,
-			MAX(load5) as max_load5,
-			MAX(load15) as max_load15
-		FROM load_metrics
-		WHERE agent_id = ? AND timestamp >= ? AND timestamp <= ?
-		GROUP BY 1
-		ORDER BY timestamp ASC
 	`
 
 	intervalMs := int64(interval * 1000)
@@ -497,19 +460,6 @@ func (r *MetricRepo) GetLatestNetworkMetrics(ctx context.Context, agentID string
 		Find(&metrics).Error
 
 	return metrics, err
-}
-
-// GetLatestLoadMetric 获取最新的负载指标
-func (r *MetricRepo) GetLatestLoadMetric(ctx context.Context, agentID string) (*models.LoadMetric, error) {
-	var metric models.LoadMetric
-	err := r.db.WithContext(ctx).
-		Where("agent_id = ?", agentID).
-		Order("timestamp DESC").
-		First(&metric).Error
-	if err != nil {
-		return nil, err
-	}
-	return &metric, nil
 }
 
 // SaveMonitorMetric 保存监控指标
@@ -622,12 +572,13 @@ func (r *MetricRepo) GetAggregatedMonitorMetrics(ctx context.Context, monitorID 
 
 // AggregatedDiskIOMetric 磁盘IO聚合指标
 type AggregatedDiskIOMetric struct {
-	Timestamp       int64   `json:"timestamp"`
-	Device          string  `json:"device"`
-	MaxReadRate     float64 `json:"maxReadRate"`     // 最大读取速率(字节/秒)
-	MaxWriteRate    float64 `json:"maxWriteRate"`    // 最大写入速率(字节/秒)
-	TotalReadBytes  uint64  `json:"totalReadBytes"`  // 总读取字节数
-	TotalWriteBytes uint64  `json:"totalWriteBytes"` // 总写入字节数
+	Timestamp         int64   `json:"timestamp"`
+	Device            string  `json:"device"`
+	MaxReadRate       float64 `json:"maxReadRate"`       // 最大读取速率(字节/秒)
+	MaxWriteRate      float64 `json:"maxWriteRate"`      // 最大写入速率(字节/秒)
+	TotalReadBytes    uint64  `json:"totalReadBytes"`    // 总读取字节数
+	TotalWriteBytes   uint64  `json:"totalWriteBytes"`   // 总写入字节数
+	MaxIopsInProgress uint64  `json:"maxIopsInProgress"` // 最大进行中的IO操作数
 }
 
 // GetDiskIOMetrics 获取聚合后的磁盘IO指标
@@ -666,10 +617,13 @@ func (r *MetricRepo) GetDiskIOMetrics(ctx context.Context, agentID string, start
 // AggregatedGPUMetric GPU聚合指标（使用最大值）
 type AggregatedGPUMetric struct {
 	Timestamp      int64   `json:"timestamp"`
+	Index          int     `json:"index"`
+	Name           string  `json:"name"`
 	MaxUtilization float64 `json:"maxUtilization"`
 	MaxMemoryUsed  uint64  `json:"maxMemoryUsed"`
 	MaxTemperature float64 `json:"maxTemperature"`
 	MaxPowerDraw   float64 `json:"maxPowerDraw"`
+	MemoryTotal    uint64  `json:"memoryTotal"`
 }
 
 // GetGPUMetrics 获取聚合后的GPU指标
@@ -744,7 +698,6 @@ func (r *MetricRepo) DeleteAgentMetrics(ctx context.Context, agentID string) err
 		&models.DiskMetric{},
 		&models.DiskIOMetric{},
 		&models.NetworkMetric{},
-		&models.LoadMetric{},
 		&models.HostMetric{},
 		&models.GPUMetric{},
 		&models.TemperatureMetric{},
@@ -797,4 +750,349 @@ func (r *MetricRepo) GetAllLatestMonitorMetrics(ctx context.Context) ([]*models.
 	`).Scan(&metrics).Error
 
 	return metrics, err
+}
+
+// ----------- 聚合表操作 -----------
+
+// AggregateCPUToAgg 将原始CPU数据聚合到聚合表
+func (r *MetricRepo) AggregateCPUToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO cpu_metrics_aggs (agent_id, bucket_seconds, bucket_start, max_usage, logical_cores)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			MAX(usage_percent) as max_usage,
+			MAX(logical_cores) as logical_cores
+		FROM cpu_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start) DO UPDATE SET
+			max_usage = EXCLUDED.max_usage,
+			logical_cores = EXCLUDED.logical_cores
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateMemoryToAgg 将原始内存数据聚合到聚合表
+func (r *MetricRepo) AggregateMemoryToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO memory_metrics_aggs (agent_id, bucket_seconds, bucket_start, max_usage, total)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			MAX(usage_percent) as max_usage,
+			MAX(total) as total
+		FROM memory_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start) DO UPDATE SET
+			max_usage = EXCLUDED.max_usage,
+			total = EXCLUDED.total
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateDiskToAgg 将原始磁盘数据聚合到聚合表
+func (r *MetricRepo) AggregateDiskToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO disk_metrics_aggs (agent_id, bucket_seconds, bucket_start, mount_point, max_usage, total)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			mount_point,
+			MAX(usage_percent) as max_usage,
+			MAX(total) as total
+		FROM disk_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start, mount_point
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start, mount_point) DO UPDATE SET
+			max_usage = EXCLUDED.max_usage,
+			total = EXCLUDED.total
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateNetworkToAgg 将原始网络数据聚合到聚合表（按网卡分组）
+func (r *MetricRepo) AggregateNetworkToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO network_metrics_aggs (agent_id, bucket_seconds, bucket_start, interface, max_sent_rate, max_recv_rate)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			interface,
+			MAX(bytes_sent_rate) as max_sent_rate,
+			MAX(bytes_recv_rate) as max_recv_rate
+		FROM network_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start, interface
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start, interface) DO UPDATE SET
+			max_sent_rate = EXCLUDED.max_sent_rate,
+			max_recv_rate = EXCLUDED.max_recv_rate
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateNetworkConnectionToAgg 将原始网络连接数据聚合到聚合表
+func (r *MetricRepo) AggregateNetworkConnectionToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO network_connection_metrics_aggs (
+			agent_id, bucket_seconds, bucket_start,
+			max_established, max_syn_sent, max_syn_recv, max_fin_wait1, max_fin_wait2,
+			max_time_wait, max_close, max_close_wait, max_last_ack, max_listen,
+			max_closing, max_total
+		)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			MAX(established) as max_established,
+			MAX(syn_sent) as max_syn_sent,
+			MAX(syn_recv) as max_syn_recv,
+			MAX(fin_wait1) as max_fin_wait1,
+			MAX(fin_wait2) as max_fin_wait2,
+			MAX(time_wait) as max_time_wait,
+			MAX(close) as max_close,
+			MAX(close_wait) as max_close_wait,
+			MAX(last_ack) as max_last_ack,
+			MAX(listen) as max_listen,
+			MAX(closing) as max_closing,
+			MAX(total) as max_total
+		FROM network_connection_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start) DO UPDATE SET
+			max_established = EXCLUDED.max_established,
+			max_syn_sent = EXCLUDED.max_syn_sent,
+			max_syn_recv = EXCLUDED.max_syn_recv,
+			max_fin_wait1 = EXCLUDED.max_fin_wait1,
+			max_fin_wait2 = EXCLUDED.max_fin_wait2,
+			max_time_wait = EXCLUDED.max_time_wait,
+			max_close = EXCLUDED.max_close,
+			max_close_wait = EXCLUDED.max_close_wait,
+			max_last_ack = EXCLUDED.max_last_ack,
+			max_listen = EXCLUDED.max_listen,
+			max_closing = EXCLUDED.max_closing,
+			max_total = EXCLUDED.max_total
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateDiskIOToAgg 将原始磁盘IO数据聚合到聚合表
+func (r *MetricRepo) AggregateDiskIOToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO disk_io_metrics_aggs (
+			agent_id, bucket_seconds, bucket_start, device,
+			max_read_bytes_rate, max_write_bytes_rate, max_iops_in_progress
+		)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			device,
+			MAX(read_bytes_rate) as max_read_bytes_rate,
+			MAX(write_bytes_rate) as max_write_bytes_rate,
+			MAX(iops_in_progress) as max_iops_in_progress
+		FROM disk_io_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start, device
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start, device) DO UPDATE SET
+			max_read_bytes_rate = EXCLUDED.max_read_bytes_rate,
+			max_write_bytes_rate = EXCLUDED.max_write_bytes_rate,
+			max_iops_in_progress = EXCLUDED.max_iops_in_progress
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateGPUToAgg 将原始GPU数据聚合到聚合表
+func (r *MetricRepo) AggregateGPUToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO gpu_metrics_aggs (
+			agent_id, bucket_seconds, bucket_start, index, name,
+			max_utilization, max_memory_used, max_temperature, max_power_draw, memory_total
+		)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			index,
+			MAX(name) as name,
+			MAX(utilization) as max_utilization,
+			MAX(memory_used) as max_memory_used,
+			MAX(temperature) as max_temperature,
+			MAX(power_draw) as max_power_draw,
+			MAX(memory_total) as memory_total
+		FROM gpu_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start, index
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start, index) DO UPDATE SET
+			name = EXCLUDED.name,
+			max_utilization = EXCLUDED.max_utilization,
+			max_memory_used = EXCLUDED.max_memory_used,
+			max_temperature = EXCLUDED.max_temperature,
+			max_power_draw = EXCLUDED.max_power_draw,
+			memory_total = EXCLUDED.memory_total
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// AggregateTemperatureToAgg 将原始温度数据聚合到聚合表
+func (r *MetricRepo) AggregateTemperatureToAgg(ctx context.Context, bucketSeconds int, start, end int64) error {
+	bucketMs := int64(bucketSeconds * 1000)
+	return r.db.WithContext(ctx).Exec(`
+		INSERT INTO temperature_metrics_aggs (
+			agent_id, bucket_seconds, bucket_start, sensor_key, sensor_label, max_temperature
+		)
+		SELECT
+			agent_id,
+			? as bucket_seconds,
+			(timestamp / ?) * ? as bucket_start,
+			sensor_key,
+			MAX(sensor_label) as sensor_label,
+			MAX(temperature) as max_temperature
+		FROM temperature_metrics
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY agent_id, bucket_start, sensor_key
+		ON CONFLICT (agent_id, bucket_seconds, bucket_start, sensor_key) DO UPDATE SET
+			sensor_label = EXCLUDED.sensor_label,
+			max_temperature = EXCLUDED.max_temperature
+	`, bucketSeconds, bucketMs, bucketMs, start, end).Error
+}
+
+// GetCPUMetricsAgg 从聚合表获取CPU指标
+func (r *MetricRepo) GetCPUMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedCPUMetric, error) {
+	var metrics []AggregatedCPUMetric
+	err := r.db.WithContext(ctx).
+		Table("cpu_metrics_aggs").
+		Select("bucket_start as timestamp, max_usage, logical_cores").
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetMemoryMetricsAgg 从聚合表获取内存指标
+func (r *MetricRepo) GetMemoryMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedMemoryMetric, error) {
+	var metrics []AggregatedMemoryMetric
+	err := r.db.WithContext(ctx).
+		Table("memory_metrics_aggs").
+		Select("bucket_start as timestamp, max_usage, total").
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetDiskMetricsAgg 从聚合表获取磁盘指标
+func (r *MetricRepo) GetDiskMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedDiskMetric, error) {
+	var metrics []AggregatedDiskMetric
+	err := r.db.WithContext(ctx).
+		Table("disk_metrics_aggs").
+		Select("bucket_start as timestamp, mount_point, max_usage, total").
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start, mount_point").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetNetworkMetricsAgg 从聚合表获取网络指标
+func (r *MetricRepo) GetNetworkMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedNetworkMetric, error) {
+	var metrics []AggregatedNetworkMetric
+	err := r.db.WithContext(ctx).
+		Table("network_metrics_aggs").
+		Select("bucket_start as timestamp, interface, max_sent_rate, max_recv_rate").
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start, interface").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetNetworkConnectionMetricsAgg 从聚合表获取网络连接指标
+func (r *MetricRepo) GetNetworkConnectionMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedNetworkConnectionMetric, error) {
+	var metrics []AggregatedNetworkConnectionMetric
+	err := r.db.WithContext(ctx).
+		Table("network_connection_metrics_aggs").
+		Select(`bucket_start as timestamp,
+			max_established, max_syn_sent, max_syn_recv,
+			max_fin_wait1, max_fin_wait2, max_time_wait,
+			max_close, max_close_wait, max_last_ack,
+			max_listen, max_closing, max_total`).
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetDiskIOMetricsAgg 从聚合表获取磁盘IO指标
+func (r *MetricRepo) GetDiskIOMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedDiskIOMetric, error) {
+	var metrics []AggregatedDiskIOMetric
+	err := r.db.WithContext(ctx).
+		Table("disk_io_metrics_aggs").
+		Select(`bucket_start as timestamp, device,
+			max_read_bytes_rate as max_read_rate,
+			max_write_bytes_rate as max_write_rate,
+			max_iops_in_progress`).
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start, device").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetGPUMetricsAgg 从聚合表获取GPU指标
+func (r *MetricRepo) GetGPUMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedGPUMetric, error) {
+	var metrics []AggregatedGPUMetric
+	err := r.db.WithContext(ctx).
+		Table("gpu_metrics_aggs").
+		Select(`bucket_start as timestamp, index, name,
+			max_utilization,
+			max_memory_used,
+			max_temperature,
+			max_power_draw,
+			memory_total`).
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start, index").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// GetTemperatureMetricsAgg 从聚合表获取温度指标
+func (r *MetricRepo) GetTemperatureMetricsAgg(ctx context.Context, agentID string, start, end int64, bucketSeconds int) ([]AggregatedTemperatureMetric, error) {
+	var metrics []AggregatedTemperatureMetric
+	err := r.db.WithContext(ctx).
+		Table("temperature_metrics_aggs").
+		Select(`bucket_start as timestamp, sensor_key, sensor_label,
+			max_temperature`).
+		Where("agent_id = ? AND bucket_seconds = ? AND bucket_start >= ? AND bucket_start < ?", agentID, bucketSeconds, start, end).
+		Order("bucket_start, sensor_key").
+		Scan(&metrics).Error
+	return metrics, err
+}
+
+// UpsertAggregationProgress 更新或插入聚合进度
+func (r *MetricRepo) UpsertAggregationProgress(ctx context.Context, metricType string, bucketSeconds int, lastBucket int64) error {
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "metric_type"}, {Name: "bucket_seconds"}},
+			DoUpdates: clause.AssignmentColumns([]string{"last_bucket"}),
+		}).
+		Create(&models.AggregationProgress{
+			MetricType:    metricType,
+			BucketSeconds: bucketSeconds,
+			LastBucket:    lastBucket,
+		}).Error
+}
+
+// GetAggregationProgress 获取聚合进度
+func (r *MetricRepo) GetAggregationProgress(ctx context.Context, metricType string, bucketSeconds int) (*models.AggregationProgress, error) {
+	var progress models.AggregationProgress
+	err := r.db.WithContext(ctx).
+		Where("metric_type = ? AND bucket_seconds = ?", metricType, bucketSeconds).
+		First(&progress).Error
+	if err != nil {
+		return nil, err
+	}
+	return &progress, nil
 }

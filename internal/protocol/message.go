@@ -66,7 +66,6 @@ const (
 	MetricTypeDiskIO            MetricType = "disk_io"
 	MetricTypeNetwork           MetricType = "network"
 	MetricTypeNetworkConnection MetricType = "network_connection"
-	MetricTypeLoad              MetricType = "load"
 	MetricTypeHost              MetricType = "host"
 	MetricTypeGPU               MetricType = "gpu"
 	MetricTypeTemperature       MetricType = "temperature"

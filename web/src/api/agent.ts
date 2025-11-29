@@ -8,8 +8,8 @@ export interface ListAgentsResponse {
 
 export interface GetAgentMetricsRequest {
     agentId: string;
-    type: 'cpu' | 'memory' | 'disk' | 'network' | 'network_connection' | 'load' | 'disk_io' | 'gpu' | 'temperature';
-    range?: '1m' | '5m' | '15m' | '30m' | '1h';
+    type: 'cpu' | 'memory' | 'disk' | 'network' | 'network_connection' | 'disk_io' | 'gpu' | 'temperature';
+    range?: '1m' | '5m' | '15m' | '30m' | '1h' | '3h' | '6h' | '12h' | '1d' | '24h' | '3d' | '7d' | '30d';
 }
 
 export interface GetAgentMetricsResponse {
@@ -74,7 +74,7 @@ export const getAgentLatestMetrics = (agentId: string) => {
 
 export interface GetNetworkMetricsByInterfaceRequest {
     agentId: string;
-    range?: '1m' | '5m' | '15m' | '30m' | '1h';
+    range?: '1m' | '5m' | '15m' | '30m' | '1h' | '3h' | '6h' | '12h' | '1d' | '24h' | '3d' | '7d' | '30d';
 }
 
 export interface NetworkMetricByInterface {
