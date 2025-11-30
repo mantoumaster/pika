@@ -861,9 +861,8 @@ const ServerDetail = () => {
                                             </span>
                                         </div>
                                         <p className="mt-2 text-sm text-white/80">
-                                            {agent.hostname} · {agent.ip}
+                                            {[agent.hostname, agent.ip].filter(Boolean).join(' · ') || '-'}
                                         </p>
-                                        <p className="text-xs text-white/60">公共视图 · 实时监控概览</p>
                                     </div>
                                 </div>
                             </div>
