@@ -57,6 +57,7 @@ build-agents:
 
 	# Windows
 	$(GOFLAGS) GOOS=windows GOARCH=amd64 go build -ldflags="$(AGENT_LDFLAGS)" -o bin/agents/pika-agent-windows-amd64.exe cmd/agent/*.go
+	$(GOFLAGS) GOOS=windows GOARCH=arm64 go build -ldflags="$(AGENT_LDFLAGS)" -o bin/agents/pika-agent-windows-arm64.exe cmd/agent/*.go
 
 	@echo "All agents built successfully!"
 	@echo "Compressing agents with UPX..."
