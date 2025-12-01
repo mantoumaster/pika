@@ -44,6 +44,7 @@ import type {
     AggregatedTemperatureMetric,
     LatestMetrics
 } from '@/types';
+import dayjs from "dayjs";
 
 const formatBytes = (bytes: number | undefined | null): string => {
     if (!bytes || bytes <= 0) return '0 B';
@@ -67,9 +68,17 @@ const formatUptime = (seconds: number | undefined | null): string => {
     const minutes = Math.floor((seconds % 3600) / 60);
 
     const parts: string[] = [];
-    if (days > 0) parts.push(`${days} 天`);
-    if (hours > 0) parts.push(`${hours} 小时`);
-    if (minutes > 0) parts.push(`${minutes} 分钟`);
+
+    // 智能显示：只显示最重要的两个单位，避免文本过长
+    if (days > 0) {
+        parts.push(`${days} 天`);
+        if (hours > 0) parts.push(`${hours} 小时`);
+    } else if (hours > 0) {
+        parts.push(`${hours} 小时`);
+        if (minutes > 0) parts.push(`${minutes} 分钟`);
+    } else if (minutes > 0) {
+        parts.push(`${minutes} 分钟`);
+    }
 
     return parts.length > 0 ? parts.join(' ') : '不到 1 分钟';
 };
@@ -79,13 +88,7 @@ const formatDateTime = (value: string | number | undefined | null): string => {
         return '-';
     }
 
-    const date = typeof value === 'number' ? new Date(value) : new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return '-';
-    }
-
-    return date.toLocaleString('zh-CN');
+    return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
 };
 
 // 网卡颜色配置（上行和下行使用不同的色调）
@@ -801,8 +804,8 @@ const ServerDetail = () => {
     ];
 
     const statusInfo = [
-        {label: '运行时间', value: uptimeDisplay},
         {label: '启动时间', value: bootTimeDisplay},
+        {label: '运行时间', value: uptimeDisplay},
         {label: '最近心跳', value: lastSeenDisplay},
         {label: '进程数', value: latestMetrics?.host?.procs ?? '-'},
         {label: '网络累计', value: networkSummary},
