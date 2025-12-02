@@ -82,7 +82,7 @@ func (a *Agent) Start(ctx context.Context) error {
 	// 启动探针主循环
 	b := &backoff.Backoff{
 		Min:    5 * time.Second,
-		Max:    5 * time.Minute,
+		Max:    1 * time.Minute,
 		Factor: 2,
 		Jitter: true,
 	}
