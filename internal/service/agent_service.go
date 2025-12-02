@@ -22,9 +22,10 @@ type AgentService struct {
 	monitorStatsRepo *repo.MonitorStatsRepo
 	apiKeyService    *ApiKeyService
 	metricService    *MetricService
+	geoipService     *GeoIPService
 }
 
-func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyService, metricService *MetricService) *AgentService {
+func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyService, metricService *MetricService, geoipService *GeoIPService) *AgentService {
 	return &AgentService{
 		logger:           logger,
 		Service:          orz.NewService(db),
@@ -32,6 +33,7 @@ func NewAgentService(logger *zap.Logger, db *gorm.DB, apiKeyService *ApiKeyServi
 		monitorStatsRepo: repo.NewMonitorStatsRepo(db),
 		apiKeyService:    apiKeyService,
 		metricService:    metricService,
+		geoipService:     geoipService,
 	}
 }
 
@@ -210,6 +212,9 @@ func (s *AgentService) handleVPSAuditResponse(ctx context.Context, agentID strin
 
 // SaveAuditResult 保存审计结果
 func (s *AgentService) SaveAuditResult(ctx context.Context, agentID string, result *protocol.VPSAuditResult) error {
+	// 为登录记录添加 IP 归属地信息
+	s.enrichLoginRecordsWithLocation(result)
+
 	// 将结果序列化为JSON存储
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
@@ -236,6 +241,49 @@ func (s *AgentService) SaveAuditResult(ctx context.Context, agentID string, resu
 	)
 
 	return nil
+}
+
+// enrichLoginRecordsWithLocation 为登录记录添加IP归属地信息
+func (s *AgentService) enrichLoginRecordsWithLocation(result *protocol.VPSAuditResult) {
+	if s.geoipService == nil {
+		return
+	}
+
+	// 处理成功登录记录
+	if result.AssetInventory.LoginAssets != nil {
+		for i := range result.AssetInventory.LoginAssets.SuccessfulLogins {
+			if result.AssetInventory.LoginAssets.SuccessfulLogins[i].IP != "" {
+				location := s.geoipService.LookupIP(result.AssetInventory.LoginAssets.SuccessfulLogins[i].IP)
+				result.AssetInventory.LoginAssets.SuccessfulLogins[i].Location = location
+			}
+		}
+
+		// 处理失败登录记录
+		for i := range result.AssetInventory.LoginAssets.FailedLogins {
+			if result.AssetInventory.LoginAssets.FailedLogins[i].IP != "" {
+				location := s.geoipService.LookupIP(result.AssetInventory.LoginAssets.FailedLogins[i].IP)
+				result.AssetInventory.LoginAssets.FailedLogins[i].Location = location
+			}
+		}
+
+		// 处理当前登录会话
+		for i := range result.AssetInventory.LoginAssets.CurrentSessions {
+			if result.AssetInventory.LoginAssets.CurrentSessions[i].IP != "" {
+				location := s.geoipService.LookupIP(result.AssetInventory.LoginAssets.CurrentSessions[i].IP)
+				result.AssetInventory.LoginAssets.CurrentSessions[i].Location = location
+			}
+		}
+	}
+
+	// 处理用户资产中的当前登录
+	if result.AssetInventory.UserAssets != nil && result.AssetInventory.UserAssets.CurrentLogins != nil {
+		for i := range result.AssetInventory.UserAssets.CurrentLogins {
+			if result.AssetInventory.UserAssets.CurrentLogins[i].IP != "" {
+				location := s.geoipService.LookupIP(result.AssetInventory.UserAssets.CurrentLogins[i].IP)
+				result.AssetInventory.UserAssets.CurrentLogins[i].Location = location
+			}
+		}
+	}
 }
 
 // GetAuditResult 获取最新的审计结果(原始数据)

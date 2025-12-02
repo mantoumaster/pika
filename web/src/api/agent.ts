@@ -242,6 +242,7 @@ export interface UserInfo {
 export interface LoginRecord {
     username: string;
     ip?: string;
+    location?: string;
     terminal: string;
     timestamp: number;
     status?: string;
@@ -251,6 +252,7 @@ export interface LoginSession {
     username: string;
     terminal: string;
     ip: string;
+    location?: string;
     loginTime: number;
     idleTime: number;
 }

@@ -35,21 +35,6 @@ interface AuditResultViewProps {
 }
 
 const AuditResultView = ({result}: AuditResultViewProps) => {
-    // 判断是否为内网IP
-    const isPrivateIP = (ip: string): boolean => {
-        if (!ip || ip === 'localhost') return true;
-
-        // IPv4 私有地址
-        const privateRanges = [
-            /^10\./,                    // 10.0.0.0/8
-            /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12
-            /^192\.168\./,              // 192.168.0.0/16
-            /^127\./,                   // 127.0.0.0/8 (loopback)
-            /^169\.254\./,              // 169.254.0.0/16 (link-local)
-        ];
-
-        return privateRanges.some(range => range.test(ip));
-    };
 
     const analyzeRisks = (result: VPSAuditResult): RiskItem[] => {
         const risks: RiskItem[] = [];
@@ -162,83 +147,10 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
             }
         }
 
-        // 7. High Frequency Login IPs (区分内外网)
-        if (result.assetInventory.loginAssets?.successfulLogins) {
-            const publicIPCount: Record<string, number> = {};
-            const privateIPCount: Record<string, number> = {};
-
-            result.assetInventory.loginAssets.successfulLogins.forEach(login => {
-                if (!login.ip || login.ip === 'localhost') return;
-
-                if (isPrivateIP(login.ip)) {
-                    privateIPCount[login.ip] = (privateIPCount[login.ip] || 0) + 1;
-                } else {
-                    publicIPCount[login.ip] = (publicIPCount[login.ip] || 0) + 1;
-                }
-            });
-
-            // 外网IP：超过20次就警告
-            const highFreqPublicIPs = Object.entries(publicIPCount).filter(([_, count]) => count > 20);
-            if (highFreqPublicIPs.length > 0) {
-                risks.push({
-                    level: 'medium',
-                    title: '发现高频外网IP登录',
-                    description: `以下公网IP登录次数较多: ${highFreqPublicIPs.map(([ip, count]) => `${ip}(${count}次)`).join(', ')}`
-                });
-            }
-
-            // 内网IP：超过100次才警告（内网环境下频繁登录是正常的）
-            const highFreqPrivateIPs = Object.entries(privateIPCount).filter(([_, count]) => count > 100);
-            if (highFreqPrivateIPs.length > 0) {
-                risks.push({
-                    level: 'low',
-                    title: '内网IP登录次数较多',
-                    description: `以下内网IP登录次数较多: ${highFreqPrivateIPs.map(([ip, count]) => `${ip}(${count}次)`).join(', ')}`
-                });
-            }
-        }
-
         return risks;
     };
 
     const risks = analyzeRisks(result);
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'pass':
-                return <CheckCircle size={16} className="text-green-500"/>;
-            case 'fail':
-                return <XCircle size={16} className="text-red-500"/>;
-            case 'warn':
-                return <AlertTriangle size={16} className="text-yellow-500"/>;
-            case 'skip':
-                return <MinusCircle size={16} className="text-gray-400"/>;
-            default:
-                return null;
-        }
-    };
-
-    const getStatusTag = (status: string) => {
-        const configs = {
-            pass: {color: 'success', text: '通过'},
-            fail: {color: 'error', text: '失败'},
-            warn: {color: 'warning', text: '警告'},
-            skip: {color: 'default', text: '跳过'},
-        };
-        const config = configs[status as keyof typeof configs] || {color: 'default', text: status};
-        return <Tag color={config.color}>{config.text}</Tag>;
-    };
-
-    const getSeverityTag = (severity?: string) => {
-        if (!severity) return null;
-        const configs = {
-            high: {color: 'error', text: '高危'},
-            medium: {color: 'warning', text: '中危'},
-            low: {color: 'default', text: '低危'},
-        };
-        const config = configs[severity as keyof typeof configs];
-        return config ? <Tag color={config.color}>{config.text}</Tag> : null;
-    };
 
     const getThreatLevelTag = (level: string) => {
         const configs = {
@@ -338,6 +250,7 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
     const loginRecordColumns = [
         {title: '用户名', dataIndex: 'username', key: 'username', width: 120},
         {title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 150},
+        {title: '归属地', dataIndex: 'location', key: 'location', width: 200, ellipsis: true},
         {title: '终端', dataIndex: 'terminal', key: 'terminal', width: 100},
         {
             title: '登录时间',
@@ -358,6 +271,7 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
     const currentSessionColumns = [
         {title: '用户名', dataIndex: 'username', key: 'username', width: 120},
         {title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 150},
+        {title: '归属地', dataIndex: 'location', key: 'location', width: 200, ellipsis: true},
         {title: '终端', dataIndex: 'terminal', key: 'terminal', width: 100},
         {
             title: '登录时间',
@@ -466,7 +380,7 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
     ];
 
     return (
-        <Space direction="vertical"  style={{width: '100%'}}>
+        <Space direction="vertical" style={{width: '100%'}}>
             {/* 风险概览 */}
             {risks.length > 0 && (
                 <Card
@@ -877,7 +791,12 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
                                                 dataSource={result.assetInventory.loginAssets.successfulLogins}
                                                 columns={loginRecordColumns}
                                                 rowKey={(record, index) => `success-${index}`}
-                                                pagination={{pageSize: 20}}
+                                                pagination={{
+                                                    pageSize: 20,
+                                                    showSizeChanger: true,
+                                                    showTotal: (total) => `共 ${total} 条记录`,
+                                                    pageSizeOptions: ['10', '20', '50', '100']
+                                                }}
                                             />
                                         ) : (
                                             <Empty description="无登录历史"/>
@@ -891,7 +810,12 @@ const AuditResultView = ({result}: AuditResultViewProps) => {
                                                 dataSource={result.assetInventory.loginAssets.failedLogins}
                                                 columns={loginRecordColumns}
                                                 rowKey={(record, index) => `failed-${index}`}
-                                                pagination={{pageSize: 20}}
+                                                pagination={{
+                                                    pageSize: 20,
+                                                    showSizeChanger: true,
+                                                    showTotal: (total) => `共 ${total} 条记录`,
+                                                    pageSizeOptions: ['10', '20', '50', '100']
+                                                }}
                                             />
                                         ) : (
                                             <Empty description="无失败登录记录"/>

@@ -28,7 +28,11 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 	apiKeyService := service.NewApiKeyService(logger, db)
 	propertyService := service.NewPropertyService(logger, db)
 	metricService := service.NewMetricService(logger, db, propertyService)
-	agentService := service.NewAgentService(logger, db, apiKeyService, metricService)
+	geoIPService, err := service.NewGeoIPService(logger, cfg)
+	if err != nil {
+		return nil, err
+	}
+	agentService := service.NewAgentService(logger, db, apiKeyService, metricService, geoIPService)
 	manager := websocket.NewManager(logger)
 	monitorService := service.NewMonitorService(logger, db, manager)
 	tamperRepo := repo.NewTamperRepo(db)

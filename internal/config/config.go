@@ -6,6 +6,7 @@ type AppConfig struct {
 	Users  map[string]string  `json:"Users"`  // 用户名 -> bcrypt加密的密码
 	OIDC   *OIDCConfig        `json:"OIDC"`   // OIDC配置（可选）
 	GitHub *GitHubOAuthConfig `json:"GitHub"` // GitHub OAuth配置（可选）
+	GeoIP  *GeoIPConfig       `json:"GeoIP"`  // GeoIP配置（可选）
 }
 
 // JWTConfig JWT配置
@@ -30,4 +31,11 @@ type GitHubOAuthConfig struct {
 	ClientSecret string   `json:"ClientSecret"` // GitHub OAuth App Client Secret
 	RedirectURL  string   `json:"RedirectURL"`  // 回调URL
 	AllowedUsers []string `json:"AllowedUsers"` // 允许登录的GitHub用户名白名单（为空则允许所有用户）
+}
+
+// GeoIPConfig GeoIP配置
+type GeoIPConfig struct {
+	Enabled    bool   `json:"Enabled"`    // 是否启用GeoIP查询
+	DBPath     string `json:"DBPath"`     // GeoIP数据库文件路径（如：GeoLite2-City.mmdb）
+	DBLanguage string `json:"DBLanguage"` // 数据库语言（如：zh-CN、en）
 }

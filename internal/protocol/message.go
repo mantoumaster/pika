@@ -501,20 +501,22 @@ type UserInfo struct {
 
 // LoginRecord 登录记录
 type LoginRecord struct {
-	Username  string `json:"username"`         // 用户名
-	IP        string `json:"ip,omitempty"`     // IP地址
-	Terminal  string `json:"terminal"`         // 终端
-	Timestamp int64  `json:"timestamp"`        // 时间戳(毫秒)
-	Status    string `json:"status,omitempty"` // success/failed
+	Username  string `json:"username"`           // 用户名
+	IP        string `json:"ip,omitempty"`       // IP地址
+	Location  string `json:"location,omitempty"` // IP归属地
+	Terminal  string `json:"terminal"`           // 终端
+	Timestamp int64  `json:"timestamp"`          // 时间戳(毫秒)
+	Status    string `json:"status,omitempty"`   // success/failed
 }
 
 // LoginSession 登录会话
 type LoginSession struct {
-	Username  string `json:"username"`  // 用户名
-	Terminal  string `json:"terminal"`  // 终端
-	IP        string `json:"ip"`        // IP地址
-	LoginTime int64  `json:"loginTime"` // 登录时间(毫秒)
-	IdleTime  int    `json:"idleTime"`  // 空闲时间(秒)
+	Username  string `json:"username"`           // 用户名
+	Terminal  string `json:"terminal"`           // 终端
+	IP        string `json:"ip"`                 // IP地址
+	Location  string `json:"location,omitempty"` // IP归属地
+	LoginTime int64  `json:"loginTime"`          // 登录时间(毫秒)
+	IdleTime  int    `json:"idleTime"`           // 空闲时间(秒)
 }
 
 // SSHKeyInfo SSH密钥信息

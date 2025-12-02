@@ -28,6 +28,7 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 		service.NewMonitorService,
 		service.NewTamperService,
 		service.NewMetricService,
+		service.NewGeoIPService,
 
 		service.NewNotifier,
 		// WebSocket Manager
