@@ -98,3 +98,45 @@ export const saveSystemConfig = async (config: SystemConfig): Promise<void> => {
     return saveProperty(PROPERTY_ID_SYSTEM_CONFIG, '系统配置', config);
 };
 
+// ==================== 告警配置 ====================
+
+const PROPERTY_ID_ALERT_CONFIG = 'alert_config';
+
+// 告警规则
+export interface AlertRules {
+    cpuEnabled: boolean;
+    cpuThreshold: number;
+    cpuDuration: number;
+    memoryEnabled: boolean;
+    memoryThreshold: number;
+    memoryDuration: number;
+    diskEnabled: boolean;
+    diskThreshold: number;
+    diskDuration: number;
+    networkEnabled: boolean;
+    networkThreshold: number;  // 网速阈值(MB/s)
+    networkDuration: number;
+    certEnabled: boolean;      // HTTPS 证书告警开关
+    certThreshold: number;     // 证书剩余天数阈值（天）
+    serviceEnabled: boolean;   // 服务下线告警开关
+    serviceDuration: number;   // 服务下线持续时间（秒）
+    agentOfflineEnabled: boolean;   // 探针离线告警开关
+    agentOfflineDuration: number;   // 探针离线持续时间（秒）
+}
+
+// 全局告警配置
+export interface AlertConfig {
+    enabled: boolean;  // 全局告警开关
+    rules: AlertRules;
+}
+
+// 获取告警配置
+export const getAlertConfig = async (): Promise<AlertConfig> => {
+    return getProperty<AlertConfig>(PROPERTY_ID_ALERT_CONFIG);
+};
+
+// 保存告警配置
+export const saveAlertConfig = async (config: AlertConfig): Promise<void> => {
+    return saveProperty(PROPERTY_ID_ALERT_CONFIG, '告警配置', config);
+};
+

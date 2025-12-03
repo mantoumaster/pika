@@ -17,6 +17,7 @@ const ServerDetailPage = lazy(() => import('../pages/Public/ServerDetail'));
 const PublicMonitorListPage = lazy(() => import('../pages/Public/MonitorList'));
 const PublicMonitorDetailPage = lazy(() => import('../pages/Public/MonitorDetail'));
 const MonitorListPage = lazy(() => import('../pages/Monitors/MonitorList'));
+const AlertRecordListPage = lazy(() => import('../pages/AlertRecords'));
 
 const LoadingFallback = () => (
     <div className="flex min-h-[200px] w-full items-center justify-center text-gray-500">
@@ -98,6 +99,10 @@ const router = createBrowserRouter([
             {
                 path: 'monitors',
                 element: lazyLoad(MonitorListPage),
+            },
+            {
+                path: 'alert-records',
+                element: lazyLoad(AlertRecordListPage),
             },
             {
                 path: 'settings',

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -20,6 +21,12 @@ import (
 	"github.com/dushixiang/pika/pkg/version"
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
+)
+
+// 定义特殊错误类型
+var (
+	// ErrConnectionEstablished 表示连接已建立后断开（需要立即重连）
+	ErrConnectionEstablished = errors.New("connection was established")
 )
 
 // safeConn 线程安全的 WebSocket 连接包装器
@@ -94,7 +101,16 @@ func (a *Agent) Start(ctx context.Context) error {
 		default:
 		}
 
-		if err := a.runOnce(ctx); err != nil {
+		err := a.runOnce(ctx, b.Reset)
+
+		// 检查是否是上下文取消
+		if ctx.Err() != nil {
+			log.Println("收到停止信号，探针服务退出")
+			return nil
+		}
+
+		// 连接建立失败或注册失败（使用 backoff）
+		if err != nil {
 			retryAfter := b.Duration()
 			log.Printf("⚠️  探针运行出错: %v，将在 %v 后重试", err, retryAfter)
 
@@ -106,10 +122,9 @@ func (a *Agent) Start(ctx context.Context) error {
 			}
 		}
 
-		// 正常断开，重置退避
-		b.Reset()
-		log.Println("连接已断开，准备重连...")
-		time.Sleep(3 * time.Second)
+		// 理论上不会到这里
+		log.Println("连接意外结束")
+		return nil
 	}
 }
 
@@ -121,7 +136,8 @@ func (a *Agent) Stop() {
 }
 
 // runOnce 运行一次探针连接
-func (a *Agent) runOnce(ctx context.Context) error {
+// 返回 error 表示需要重连，返回 nil 可能是正常关闭或上下文取消
+func (a *Agent) runOnce(ctx context.Context, onConnected func()) error {
 	wsURL := a.cfg.GetWebSocketURL()
 	log.Printf("🔌 正在连接到服务器: %s", wsURL)
 
@@ -140,6 +156,8 @@ func (a *Agent) runOnce(ctx context.Context) error {
 		return fmt.Errorf("连接失败: %w", err)
 	}
 	defer rawConn.Close()
+
+	onConnected()
 
 	// 创建线程安全的连接包装器
 	conn := &safeConn{conn: rawConn}
@@ -209,7 +227,9 @@ func (a *Agent) runOnce(ctx context.Context) error {
 	select {
 	case err := <-errChan:
 		close(done)
-		return err
+		// 连接已建立，无论什么原因断开都标记为已建立状态
+		log.Printf("连接断开: %v", err)
+		return ErrConnectionEstablished
 	case <-ctx.Done():
 		close(done)
 		// 优雅关闭连接
@@ -218,7 +238,7 @@ func (a *Agent) runOnce(ctx context.Context) error {
 			log.Printf("⚠️  关闭连接失败: %v", err)
 		}
 		time.Sleep(time.Second)
-		return nil
+		return ctx.Err() // 返回上下文错误
 	}
 }
 
@@ -234,13 +254,7 @@ func (a *Agent) readLoop(conn *websocket.Conn, done chan struct{}) error {
 		// 读取消息（这会触发 PingHandler）
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			// 检查是否是正常关闭
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				log.Println("服务端正常关闭连接")
-				return nil
-			}
-			// 其他错误
-			return fmt.Errorf("读取消息失败: %w", err)
+			return err
 		}
 
 		// 解析消息

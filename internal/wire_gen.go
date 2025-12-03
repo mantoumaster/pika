@@ -37,7 +37,7 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 	monitorService := service.NewMonitorService(logger, db, manager)
 	tamperRepo := repo.NewTamperRepo(db)
 	tamperService := service.NewTamperService(logger, tamperRepo, manager)
-	agentHandler := handler.NewAgentHandler(logger, agentService, monitorService, tamperService, manager)
+	agentHandler := handler.NewAgentHandler(logger, agentService, metricService, monitorService, tamperService, manager)
 	apiKeyHandler := handler.NewApiKeyHandler(logger, apiKeyService)
 	notifier := service.NewNotifier(logger)
 	alertService := service.NewAlertService(logger, db, propertyService, notifier)
@@ -54,6 +54,7 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 		MonitorHandler:  monitorHandler,
 		TamperHandler:   tamperHandler,
 		AgentService:    agentService,
+		MetricService:   metricService,
 		AlertService:    alertService,
 		PropertyService: propertyService,
 		MonitorService:  monitorService,
@@ -77,6 +78,7 @@ type AppComponents struct {
 	TamperHandler   *handler.TamperHandler
 
 	AgentService    *service.AgentService
+	MetricService   *service.MetricService
 	AlertService    *service.AlertService
 	PropertyService *service.PropertyService
 	MonitorService  *service.MonitorService

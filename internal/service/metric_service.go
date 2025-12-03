@@ -321,8 +321,9 @@ func (s *MetricService) HandleMetricData(ctx context.Context, agentID string, me
 			return err
 		}
 		// 保存每个GPU的数据
+		var gpuMetrics []models.GPUMetric
 		for _, gpuData := range gpuDataList {
-			metric := &models.GPUMetric{
+			metric := models.GPUMetric{
 				AgentID:          agentID,
 				Index:            gpuData.Index,
 				Name:             gpuData.Name,
@@ -336,13 +337,15 @@ func (s *MetricService) HandleMetricData(ctx context.Context, agentID string, me
 				PerformanceState: "", // protocol 中没有这个字段，留空
 				Timestamp:        now,
 			}
-			if err := s.metricRepo.SaveGPUMetric(ctx, metric); err != nil {
+			gpuMetrics = append(gpuMetrics, metric)
+			if err := s.metricRepo.SaveGPUMetric(ctx, &metric); err != nil {
 				s.logger.Error("failed to save gpu metric",
 					zap.Error(err),
 					zap.String("agentID", agentID),
 					zap.Int("index", gpuData.Index))
 			}
 		}
+		latestMetrics.GPU = gpuMetrics
 		return nil
 
 	case protocol.MetricTypeTemperature:
@@ -352,21 +355,24 @@ func (s *MetricService) HandleMetricData(ctx context.Context, agentID string, me
 			return err
 		}
 		// 保存每个温度传感器的数据
+		var tempMetrics []models.TemperatureMetric
 		for _, tempData := range tempDataList {
-			metric := &models.TemperatureMetric{
+			metric := models.TemperatureMetric{
 				AgentID:     agentID,
 				SensorKey:   tempData.SensorKey,
 				SensorLabel: tempData.SensorKey, // protocol 中没有 SensorLabel，使用 SensorKey
 				Temperature: tempData.Temperature,
 				Timestamp:   now,
 			}
-			if err := s.metricRepo.SaveTemperatureMetric(ctx, metric); err != nil {
+			tempMetrics = append(tempMetrics, metric)
+			if err := s.metricRepo.SaveTemperatureMetric(ctx, &metric); err != nil {
 				s.logger.Error("failed to save temperature metric",
 					zap.Error(err),
 					zap.String("agentID", agentID),
 					zap.String("sensor", tempData.SensorKey))
 			}
 		}
+		latestMetrics.Temp = tempMetrics
 		return nil
 
 	case protocol.MetricTypeMonitor:
@@ -803,4 +809,6 @@ type LatestMetrics struct {
 	Network           *NetworkSummary                 `json:"network,omitempty"`
 	NetworkConnection *models.NetworkConnectionMetric `json:"networkConnection,omitempty"`
 	Host              *models.HostMetric              `json:"host,omitempty"`
+	GPU               []models.GPUMetric              `json:"gpu,omitempty"`
+	Temp              []models.TemperatureMetric      `json:"temperature,omitempty"`
 }

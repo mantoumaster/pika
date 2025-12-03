@@ -429,23 +429,20 @@ export interface AlertRules {
     certThreshold: number;     // 证书剩余天数阈值（天）
     serviceEnabled: boolean;   // 服务下线告警开关
     serviceDuration: number;   // 服务下线持续时间（秒）
+    agentOfflineEnabled: boolean;   // 探针离线告警开关
+    agentOfflineDuration: number;   // 探针离线持续时间（秒）
 }
 
+// 全局告警配置（现在存储在 Property 中）
 export interface AlertConfig {
-    id?: string;
-    agentId: string;
-    agentIds?: string[]; // 监控的探针列表，空数组表示监控所有
-    name: string;
-    enabled: boolean;
+    enabled: boolean;  // 全局告警开关
     rules: AlertRules;
-    notificationChannelIds: string[]; // 通知渠道类型列表（dingtalk, wecom, feishu, webhook）
-    createdAt?: number;
-    updatedAt?: number;
 }
 
 export interface AlertRecord {
     id: number;
     agentId: string;
+    agentName: string;
     configId: string;
     configName: string;
     alertType: string;

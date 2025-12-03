@@ -2,7 +2,7 @@ import {type JSX, useEffect, useMemo, useState} from 'react';
 import {Outlet, useLocation, useNavigate} from 'react-router-dom';
 import type {MenuProps} from 'antd';
 import {App, Avatar, Button, Dropdown, Space} from 'antd';
-import {Activity, BookOpen, Eye, Key, LogOut, Server, Settings, User as UserIcon} from 'lucide-react';
+import {Activity, AlertTriangle, BookOpen, Eye, Key, LogOut, Server, Settings, User as UserIcon} from 'lucide-react';
 import {logout} from '@/api/auth.ts';
 import type {User} from '@/types';
 import {cn} from '@/lib/utils';
@@ -44,6 +44,12 @@ const AdminLayout = () => {
                 label: '服务监控',
                 path: '/admin/monitors',
                 icon: <Activity className="h-4 w-4" strokeWidth={2}/>,
+            },
+            {
+                key: 'alert-records',
+                label: '告警记录',
+                path: '/admin/alert-records',
+                icon: <AlertTriangle className="h-4 w-4" strokeWidth={2}/>,
             },
             {
                 key: 'settings',

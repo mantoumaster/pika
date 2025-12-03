@@ -7,86 +7,67 @@ import (
 
 	"github.com/dushixiang/pika/internal/models"
 	"github.com/dushixiang/pika/internal/repo"
-	"github.com/go-orz/toolkit/syncx"
-	"github.com/google/uuid"
+	"github.com/go-orz/orz"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 // AlertService 告警服务
 type AlertService struct {
-	alertRepo       *repo.AlertRepo
+	Service         *orz.Service
+	AlertRecordRepo *repo.AlertRecordRepo
+	AlertStateRepo  *repo.AlertStateRepo
 	agentRepo       *repo.AgentRepo
 	metricRepo      *repo.MetricRepo
 	propertyService *PropertyService
 	notifier        *Notifier
 	logger          *zap.Logger
-
-	// 告警状态缓存（内存中维护）
-	states *syncx.SafeMap[string, *models.AlertState]
 }
 
 func NewAlertService(logger *zap.Logger, db *gorm.DB, propertyService *PropertyService, notifier *Notifier) *AlertService {
 	return &AlertService{
-		alertRepo:       repo.NewAlertRepo(db),
+		Service:         orz.NewService(db),
+		AlertRecordRepo: repo.NewAlertRecordRepo(db),
+		AlertStateRepo:  repo.NewAlertStateRepo(db),
 		agentRepo:       repo.NewAgentRepo(db),
 		metricRepo:      repo.NewMetricRepo(db),
 		propertyService: propertyService,
 		notifier:        notifier,
 		logger:          logger,
-		states:          syncx.NewSafeMap[string, *models.AlertState](),
 	}
 }
 
-// CreateAlertConfig 创建告警配置
-func (s *AlertService) CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
-	config.ID = uuid.New().String()
-	config.CreatedAt = time.Now().UnixMilli()
-	config.UpdatedAt = time.Now().UnixMilli()
-
-	return s.alertRepo.CreateAlertConfig(ctx, config)
-}
-
-// UpdateAlertConfig 更新告警配置
-func (s *AlertService) UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
-	config.UpdatedAt = time.Now().UnixMilli()
-	return s.alertRepo.UpdateAlertConfig(ctx, config)
-}
-
-// DeleteAlertConfig 删除告警配置
-func (s *AlertService) DeleteAlertConfig(ctx context.Context, id string) error {
-	// 清理该配置相关的状态
-	for key := range s.states.Keys() {
-		if state, ok := s.states.Get(key); ok && state.ConfigID == id {
-			s.states.Delete(key)
+// Clear 清空告警记录
+func (s *AlertService) Clear(ctx context.Context) error {
+	return s.Service.Transaction(ctx, func(ctx context.Context) error {
+		// 清空告警记录
+		if err := s.AlertRecordRepo.Clear(ctx); err != nil {
+			s.logger.Error("清空告警记录失败", zap.Error(err))
+			return err
 		}
-	}
 
-	return s.alertRepo.DeleteAlertConfig(ctx, id)
-}
+		// 清空告警状态
+		if err := s.AlertStateRepo.Clear(ctx); err != nil {
+			s.logger.Error("清空告警状态失败", zap.Error(err))
+			return err
+		}
 
-// GetAlertConfig 获取告警配置
-func (s *AlertService) GetAlertConfig(ctx context.Context, id string) (*models.AlertConfig, error) {
-	return s.alertRepo.GetAlertConfig(ctx, id)
-}
-
-// ListAlertConfigsByAgent 列出探针的告警配置
-func (s *AlertService) ListAlertConfigsByAgent(ctx context.Context, agentID string) ([]models.AlertConfig, error) {
-	return s.alertRepo.FindByAgentID(ctx, agentID)
-}
-
-// ListAlertRecords 列出告警记录
-func (s *AlertService) ListAlertRecords(ctx context.Context, agentID string, limit int, offset int) ([]models.AlertRecord, int64, error) {
-	return s.alertRepo.ListAlertRecords(ctx, agentID, limit, offset)
+		return nil
+	})
 }
 
 // CheckMetrics 检查指标并触发告警
 func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, memory, disk, networkSpeed float64) error {
 	// 获取全局告警配置
-	globalConfigs, err := s.alertRepo.FindEnabledByAgentID(ctx, "global")
+	alertConfig, err := s.propertyService.GetAlertConfig(ctx)
 	if err != nil {
 		s.logger.Error("获取全局告警配置失败", zap.Error(err))
 		return err
+	}
+
+	// 如果全局告警未启用，直接返回
+	if !alertConfig.Enabled {
+		return nil
 	}
 
 	// 获取探针信息（用于发送通知）
@@ -98,27 +79,24 @@ func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, me
 
 	now := time.Now().UnixMilli()
 
-	// 检查每个配置的告警规则
-	for _, config := range globalConfigs {
-		// 检查 CPU 告警
-		if config.Rules.CPUEnabled {
-			s.checkAlert(ctx, &config, &agent, "cpu", cpu, config.Rules.CPUThreshold, config.Rules.CPUDuration, now)
-		}
+	// 检查 CPU 告警
+	if alertConfig.Rules.CPUEnabled {
+		s.checkAlert(ctx, alertConfig, &agent, "cpu", cpu, alertConfig.Rules.CPUThreshold, alertConfig.Rules.CPUDuration, now)
+	}
 
-		// 检查内存告警
-		if config.Rules.MemoryEnabled {
-			s.checkAlert(ctx, &config, &agent, "memory", memory, config.Rules.MemoryThreshold, config.Rules.MemoryDuration, now)
-		}
+	// 检查内存告警
+	if alertConfig.Rules.MemoryEnabled {
+		s.checkAlert(ctx, alertConfig, &agent, "memory", memory, alertConfig.Rules.MemoryThreshold, alertConfig.Rules.MemoryDuration, now)
+	}
 
-		// 检查磁盘告警
-		if config.Rules.DiskEnabled {
-			s.checkAlert(ctx, &config, &agent, "disk", disk, config.Rules.DiskThreshold, config.Rules.DiskDuration, now)
-		}
+	// 检查磁盘告警
+	if alertConfig.Rules.DiskEnabled {
+		s.checkAlert(ctx, alertConfig, &agent, "disk", disk, alertConfig.Rules.DiskThreshold, alertConfig.Rules.DiskDuration, now)
+	}
 
-		// 检查网速告警
-		if config.Rules.NetworkEnabled {
-			s.checkAlert(ctx, &config, &agent, "network", networkSpeed, config.Rules.NetworkThreshold, config.Rules.NetworkDuration, now)
-		}
+	// 检查网速告警
+	if alertConfig.Rules.NetworkEnabled {
+		s.checkAlert(ctx, alertConfig, &agent, "network", networkSpeed, alertConfig.Rules.NetworkThreshold, alertConfig.Rules.NetworkDuration, now)
 	}
 
 	return nil
@@ -126,22 +104,23 @@ func (s *AlertService) CheckMetrics(ctx context.Context, agentID string, cpu, me
 
 // checkAlert 检查单个告警规则
 func (s *AlertService) checkAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, alertType string, currentValue, threshold float64, duration int, now int64) {
-	stateKey := fmt.Sprintf("%s:%s:%s", agent.ID, config.ID, alertType)
+	stateKey := fmt.Sprintf("%s:global:%s", agent.ID, alertType)
 
 	var shouldFire, shouldResolve bool
 
-	state, exists := s.states.Get(stateKey)
-	if !exists {
+	// 从数据库加载状态
+	state, err := s.AlertStateRepo.GetAlertState(ctx, stateKey)
+	if err != nil {
+		// 状态不存在，创建新状态
 		state = &models.AlertState{
+			ID:        stateKey,
 			AgentID:   agent.ID,
-			ConfigID:  config.ID,
 			AlertType: alertType,
 		}
 	}
 
 	// 按探针维度更新最新阈值/持续时间，支持配置变更
 	state.AgentID = agent.ID
-	state.ConfigID = config.ID
 	state.AlertType = alertType
 	state.Threshold = threshold
 	state.Duration = duration
@@ -165,8 +144,10 @@ func (s *AlertService) checkAlert(ctx context.Context, config *models.AlertConfi
 		state.StartTime = 0
 	}
 
-	// 更新状态
-	s.states.Set(stateKey, state)
+	// 保存状态到数据库
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	if shouldFire {
 		s.fireAlert(ctx, config, agent, state)
@@ -179,12 +160,9 @@ func (s *AlertService) checkAlert(ctx context.Context, config *models.AlertConfi
 
 // fireAlert 触发告警
 func (s *AlertService) fireAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, state *models.AlertState) {
-	stateKey := fmt.Sprintf("%s:%s:%s", agent.ID, config.ID, state.AlertType)
-
 	s.logger.Info("触发告警",
 		zap.String("agentId", agent.ID),
 		zap.String("agentName", agent.Name),
-		zap.String("configId", config.ID),
 		zap.String("alertType", state.AlertType),
 		zap.Float64("value", state.Value),
 		zap.Float64("threshold", state.Threshold),
@@ -195,8 +173,7 @@ func (s *AlertService) fireAlert(ctx context.Context, config *models.AlertConfig
 	// 创建告警记录
 	record := &models.AlertRecord{
 		AgentID:     agent.ID,
-		ConfigID:    config.ID,
-		ConfigName:  config.Name,
+		AgentName:   agent.Name,
 		AlertType:   state.AlertType,
 		Message:     s.buildAlertMessage(state),
 		Threshold:   state.Threshold,
@@ -207,7 +184,7 @@ func (s *AlertService) fireAlert(ctx context.Context, config *models.AlertConfig
 		CreatedAt:   now,
 	}
 
-	err := s.alertRepo.CreateAlertRecord(ctx, record)
+	err := s.AlertRecordRepo.CreateAlertRecord(ctx, record)
 	if err != nil {
 		s.logger.Error("创建告警记录失败", zap.Error(err))
 		// 不回滚 IsFiring 状态,避免下次检查时重复触发
@@ -217,7 +194,9 @@ func (s *AlertService) fireAlert(ctx context.Context, config *models.AlertConfig
 
 	// 更新状态
 	state.LastRecordID = record.ID
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	// 发送通知 - 使用新的 context 避免父 context 取消影响通知发送
 	go s.sendAlertNotification(record, agent)
@@ -225,18 +204,15 @@ func (s *AlertService) fireAlert(ctx context.Context, config *models.AlertConfig
 
 // resolveAlert 恢复告警
 func (s *AlertService) resolveAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, state *models.AlertState) {
-	stateKey := fmt.Sprintf("%s:%s:%s", agent.ID, config.ID, state.AlertType)
-
 	s.logger.Info("告警恢复",
 		zap.String("agentId", agent.ID),
 		zap.String("agentName", agent.Name),
-		zap.String("configId", config.ID),
 		zap.String("alertType", state.AlertType),
 		zap.Float64("value", state.Value),
 	)
 
 	if state.LastRecordID > 0 {
-		existingRecord, err := s.alertRepo.GetAlertRecordByID(ctx, state.LastRecordID)
+		existingRecord, err := s.AlertRecordRepo.GetAlertRecordByID(ctx, state.LastRecordID)
 		if err != nil {
 			s.logger.Error("获取告警记录失败", zap.Error(err))
 		} else if existingRecord != nil {
@@ -253,7 +229,7 @@ func (s *AlertService) resolveAlert(ctx context.Context, config *models.AlertCon
 				existingRecord.ResolvedAt = now
 				existingRecord.UpdatedAt = now
 
-				err = s.alertRepo.UpdateAlertRecord(ctx, existingRecord)
+				err = s.AlertRecordRepo.UpdateAlertRecord(ctx, existingRecord)
 				if err != nil {
 					s.logger.Error("更新告警记录失败", zap.Error(err))
 				} else {
@@ -267,7 +243,9 @@ func (s *AlertService) resolveAlert(ctx context.Context, config *models.AlertCon
 	// 更新状态
 	state.IsFiring = false
 	state.LastRecordID = 0
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 }
 
 // buildAlertMessage 构建告警消息
@@ -354,35 +332,37 @@ func (s *AlertService) sendAlertNotification(record *models.AlertRecord, agent *
 // CheckMonitorAlerts 检查监控相关告警（证书和服务下线）
 func (s *AlertService) CheckMonitorAlerts(ctx context.Context) error {
 	// 获取全局告警配置
-	globalConfigs, err := s.alertRepo.FindEnabledByAgentID(ctx, "global")
+	alertConfig, err := s.propertyService.GetAlertConfig(ctx)
 	if err != nil {
 		s.logger.Error("获取全局告警配置失败", zap.Error(err))
 		return err
 	}
 
+	// 如果全局告警未启用，直接返回
+	if !alertConfig.Enabled {
+		return nil
+	}
+
 	now := time.Now().UnixMilli()
 
-	// 检查每个配置的告警规则
-	for _, config := range globalConfigs {
-		// 检查证书告警
-		if config.Rules.CertEnabled {
-			if err := s.checkCertificateAlerts(ctx, &config, now); err != nil {
-				s.logger.Error("检查证书告警失败", zap.Error(err))
-			}
+	// 检查证书告警
+	if alertConfig.Rules.CertEnabled {
+		if err := s.checkCertificateAlerts(ctx, alertConfig, now); err != nil {
+			s.logger.Error("检查证书告警失败", zap.Error(err))
 		}
+	}
 
-		// 检查服务下线告警
-		if config.Rules.ServiceEnabled {
-			if err := s.checkServiceDownAlerts(ctx, &config, now); err != nil {
-				s.logger.Error("检查服务下线告警失败", zap.Error(err))
-			}
+	// 检查服务下线告警
+	if alertConfig.Rules.ServiceEnabled {
+		if err := s.checkServiceDownAlerts(ctx, alertConfig, now); err != nil {
+			s.logger.Error("检查服务下线告警失败", zap.Error(err))
 		}
+	}
 
-		// 检查探针离线告警
-		if config.Rules.AgentOfflineEnabled {
-			if err := s.checkAgentOfflineAlerts(ctx, &config, now); err != nil {
-				s.logger.Error("检查探针离线告警失败", zap.Error(err))
-			}
+	// 检查探针离线告警
+	if alertConfig.Rules.AgentOfflineEnabled {
+		if err := s.checkAgentOfflineAlerts(ctx, alertConfig, now); err != nil {
+			s.logger.Error("检查探针离线告警失败", zap.Error(err))
 		}
 	}
 
@@ -428,18 +408,19 @@ func (s *AlertService) checkCertificateAlerts(ctx context.Context, config *model
 
 // checkCertAlert 检查并触发证书告警
 func (s *AlertService) checkCertAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, monitor *models.MonitorMetric, certDaysLeft float64, now int64) {
-	stateKey := fmt.Sprintf("%s:%s:cert:%s", agent.ID, config.ID, monitor.MonitorId)
+	stateKey := fmt.Sprintf("%s:global:cert:%s", agent.ID, monitor.MonitorId)
 
-	state, exists := s.states.Get(stateKey)
-	if !exists {
+	// 从数据库加载状态
+	state, err := s.AlertStateRepo.GetAlertState(ctx, stateKey)
+	if err != nil {
+		// 状态不存在，创建新状态
 		state = &models.AlertState{
+			ID:        stateKey,
 			AgentID:   agent.ID,
-			ConfigID:  config.ID,
 			AlertType: "cert",
 		}
 	}
 	state.AgentID = agent.ID
-	state.ConfigID = config.ID
 	state.AlertType = "cert"
 	state.Threshold = config.Rules.CertThreshold
 	state.Duration = 0
@@ -452,8 +433,10 @@ func (s *AlertService) checkCertAlert(ctx context.Context, config *models.AlertC
 		state.IsFiring = true
 	}
 
-	// 更新状态
-	s.states.Set(stateKey, state)
+	// 保存状态到数据库
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	if !shouldFire {
 		return
@@ -469,8 +452,7 @@ func (s *AlertService) checkCertAlert(ctx context.Context, config *models.AlertC
 
 	record := &models.AlertRecord{
 		AgentID:     agent.ID,
-		ConfigID:    config.ID,
-		ConfigName:  config.Name,
+		AgentName:   agent.Name,
 		AlertType:   "cert",
 		Message:     fmt.Sprintf("监控项 %s 的HTTPS证书剩余天数%.0f天，低于阈值%.0f天", monitor.Target, certDaysLeft, config.Rules.CertThreshold),
 		Threshold:   config.Rules.CertThreshold,
@@ -481,14 +463,16 @@ func (s *AlertService) checkCertAlert(ctx context.Context, config *models.AlertC
 		CreatedAt:   now,
 	}
 
-	err := s.alertRepo.CreateAlertRecord(ctx, record)
+	err = s.AlertRecordRepo.CreateAlertRecord(ctx, record)
 	if err != nil {
 		s.logger.Error("创建证书告警记录失败", zap.Error(err))
 		return
 	}
 
 	state.LastRecordID = record.ID
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	// 发送通知
 	go s.sendAlertNotification(record, agent)
@@ -496,10 +480,10 @@ func (s *AlertService) checkCertAlert(ctx context.Context, config *models.AlertC
 
 // resolveCertAlert 恢复证书告警
 func (s *AlertService) resolveCertAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, monitor *models.MonitorMetric, certDaysLeft float64) {
-	stateKey := fmt.Sprintf("%s:%s:cert:%s", agent.ID, config.ID, monitor.MonitorId)
+	stateKey := fmt.Sprintf("%s:global:cert:%s", agent.ID, monitor.MonitorId)
 
-	state, exists := s.states.Get(stateKey)
-	if !exists || !state.IsFiring {
+	state, err := s.AlertStateRepo.GetAlertState(ctx, stateKey)
+	if err != nil || !state.IsFiring {
 		return
 	}
 
@@ -511,7 +495,7 @@ func (s *AlertService) resolveCertAlert(ctx context.Context, config *models.Aler
 	)
 
 	if state.LastRecordID > 0 {
-		existingRecord, err := s.alertRepo.GetAlertRecordByID(ctx, state.LastRecordID)
+		existingRecord, err := s.AlertRecordRepo.GetAlertRecordByID(ctx, state.LastRecordID)
 		if err != nil {
 			s.logger.Error("获取证书告警记录失败", zap.Error(err))
 		} else if existingRecord != nil && existingRecord.Status == "firing" {
@@ -521,7 +505,7 @@ func (s *AlertService) resolveCertAlert(ctx context.Context, config *models.Aler
 			existingRecord.ResolvedAt = now
 			existingRecord.UpdatedAt = now
 
-			err = s.alertRepo.UpdateAlertRecord(ctx, existingRecord)
+			err = s.AlertRecordRepo.UpdateAlertRecord(ctx, existingRecord)
 			if err != nil {
 				s.logger.Error("更新证书告警记录失败", zap.Error(err))
 			} else {
@@ -533,7 +517,9 @@ func (s *AlertService) resolveCertAlert(ctx context.Context, config *models.Aler
 
 	state.IsFiring = false
 	state.LastRecordID = 0
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 }
 
 // calculateCertLevel 计算证书告警级别
@@ -563,20 +549,21 @@ func (s *AlertService) checkServiceDownAlerts(ctx context.Context, config *model
 			continue
 		}
 
-		stateKey := fmt.Sprintf("%s:%s:service:%s", agent.ID, config.ID, monitor.MonitorId)
+		stateKey := fmt.Sprintf("%s:global:service:%s", agent.ID, monitor.MonitorId)
 
 		var shouldFire, shouldResolve bool
 
-		state, exists := s.states.Get(stateKey)
-		if !exists {
+		// 从数据库加载状态
+		state, err := s.AlertStateRepo.GetAlertState(ctx, stateKey)
+		if err != nil {
+			// 状态不存在，创建新状态
 			state = &models.AlertState{
+				ID:        stateKey,
 				AgentID:   agent.ID,
-				ConfigID:  config.ID,
 				AlertType: "service",
 			}
 		}
 		state.AgentID = agent.ID
-		state.ConfigID = config.ID
 		state.AlertType = "service"
 		state.Duration = config.Rules.ServiceDuration
 		state.LastCheckTime = now
@@ -598,8 +585,10 @@ func (s *AlertService) checkServiceDownAlerts(ctx context.Context, config *model
 			state.StartTime = 0
 		}
 
-		// 更新状态
-		s.states.Set(stateKey, state)
+		// 保存状态到数据库
+		if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+			s.logger.Error("保存告警状态失败", zap.Error(err))
+		}
 
 		if shouldFire {
 			s.fireServiceDownAlert(ctx, config, &agent, monitor, state, now)
@@ -615,8 +604,6 @@ func (s *AlertService) checkServiceDownAlerts(ctx context.Context, config *model
 
 // fireServiceDownAlert 触发服务下线告警
 func (s *AlertService) fireServiceDownAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, monitor *models.MonitorMetric, state *models.AlertState, now int64) {
-	stateKey := fmt.Sprintf("%s:%s:service:%s", agent.ID, config.ID, monitor.MonitorId)
-
 	s.logger.Info("触发服务下线告警",
 		zap.String("agentId", agent.ID),
 		zap.String("monitorId", monitor.MonitorId),
@@ -627,8 +614,7 @@ func (s *AlertService) fireServiceDownAlert(ctx context.Context, config *models.
 	// 创建告警记录
 	record := &models.AlertRecord{
 		AgentID:     agent.ID,
-		ConfigID:    config.ID,
-		ConfigName:  config.Name,
+		AgentName:   agent.Name,
 		AlertType:   "service",
 		Message:     fmt.Sprintf("监控项 %s 持续离线%d秒", monitor.Target, state.Duration),
 		Threshold:   0,
@@ -639,14 +625,16 @@ func (s *AlertService) fireServiceDownAlert(ctx context.Context, config *models.
 		CreatedAt:   now,
 	}
 
-	err := s.alertRepo.CreateAlertRecord(ctx, record)
+	err := s.AlertRecordRepo.CreateAlertRecord(ctx, record)
 	if err != nil {
 		s.logger.Error("创建服务下线告警记录失败", zap.Error(err))
 		return
 	}
 
 	state.LastRecordID = record.ID
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	// 发送通知
 	go s.sendAlertNotification(record, agent)
@@ -654,8 +642,6 @@ func (s *AlertService) fireServiceDownAlert(ctx context.Context, config *models.
 
 // resolveServiceDownAlert 恢复服务下线告警
 func (s *AlertService) resolveServiceDownAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, monitor *models.MonitorMetric, state *models.AlertState) {
-	stateKey := fmt.Sprintf("%s:%s:service:%s", agent.ID, config.ID, monitor.MonitorId)
-
 	s.logger.Info("服务下线告警恢复",
 		zap.String("agentId", agent.ID),
 		zap.String("monitorId", monitor.MonitorId),
@@ -663,7 +649,7 @@ func (s *AlertService) resolveServiceDownAlert(ctx context.Context, config *mode
 	)
 
 	if state.LastRecordID > 0 {
-		existingRecord, err := s.alertRepo.GetAlertRecordByID(ctx, state.LastRecordID)
+		existingRecord, err := s.AlertRecordRepo.GetAlertRecordByID(ctx, state.LastRecordID)
 		if err != nil {
 			s.logger.Error("获取服务下线告警记录失败", zap.Error(err))
 		} else if existingRecord != nil && existingRecord.Status == "firing" {
@@ -672,7 +658,7 @@ func (s *AlertService) resolveServiceDownAlert(ctx context.Context, config *mode
 			existingRecord.ResolvedAt = now
 			existingRecord.UpdatedAt = now
 
-			err = s.alertRepo.UpdateAlertRecord(ctx, existingRecord)
+			err = s.AlertRecordRepo.UpdateAlertRecord(ctx, existingRecord)
 			if err != nil {
 				s.logger.Error("更新服务下线告警记录失败", zap.Error(err))
 			} else {
@@ -684,7 +670,9 @@ func (s *AlertService) resolveServiceDownAlert(ctx context.Context, config *mode
 
 	state.IsFiring = false
 	state.LastRecordID = 0
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 }
 
 // checkAgentOfflineAlerts 检查探针离线告警
@@ -696,7 +684,7 @@ func (s *AlertService) checkAgentOfflineAlerts(ctx context.Context, config *mode
 	}
 
 	for _, agent := range agents {
-		stateKey := fmt.Sprintf("%s:%s:agent_offline:%s", agent.ID, config.ID, agent.ID)
+		stateKey := fmt.Sprintf("%s:global:agent_offline:%s", agent.ID, agent.ID)
 
 		// 防止时钟回拨导致负数
 		offlineSeconds := int64(0)
@@ -704,17 +692,18 @@ func (s *AlertService) checkAgentOfflineAlerts(ctx context.Context, config *mode
 			offlineSeconds = (now - agent.LastSeenAt) / 1000
 		}
 
-		state, exists := s.states.Get(stateKey)
-		if !exists {
+		// 从数据库加载状态
+		state, err := s.AlertStateRepo.GetAlertState(ctx, stateKey)
+		if err != nil {
+			// 状态不存在，创建新状态
 			state = &models.AlertState{
+				ID:        stateKey,
 				AgentID:   agent.ID,
-				ConfigID:  config.ID,
 				AlertType: "agent_offline",
 			}
 		}
 
 		state.AgentID = agent.ID
-		state.ConfigID = config.ID
 		state.AlertType = "agent_offline"
 		state.Duration = config.Rules.AgentOfflineDuration
 		state.Threshold = float64(config.Rules.AgentOfflineDuration)
@@ -734,8 +723,10 @@ func (s *AlertService) checkAgentOfflineAlerts(ctx context.Context, config *mode
 			}
 		}
 
-		// 更新状态
-		s.states.Set(stateKey, state)
+		// 保存状态到数据库
+		if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+			s.logger.Error("保存告警状态失败", zap.Error(err))
+		}
 
 		if shouldFire {
 			s.fireAgentOfflineAlert(ctx, config, &agent, state, offlineSeconds, now)
@@ -751,8 +742,6 @@ func (s *AlertService) checkAgentOfflineAlerts(ctx context.Context, config *mode
 
 // fireAgentOfflineAlert 触发探针离线告警
 func (s *AlertService) fireAgentOfflineAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, state *models.AlertState, offlineSeconds int64, now int64) {
-	stateKey := fmt.Sprintf("%s:%s:agent_offline:%s", agent.ID, config.ID, agent.ID)
-
 	s.logger.Info("触发探针离线告警",
 		zap.String("agentId", agent.ID),
 		zap.String("agentName", agent.Name),
@@ -763,8 +752,7 @@ func (s *AlertService) fireAgentOfflineAlert(ctx context.Context, config *models
 	// 创建告警记录
 	record := &models.AlertRecord{
 		AgentID:     agent.ID,
-		ConfigID:    config.ID,
-		ConfigName:  config.Name,
+		AgentName:   agent.Name,
 		AlertType:   "agent_offline",
 		Message:     fmt.Sprintf("探针 %s 已离线%d秒，超过阈值%d秒", agent.Name, offlineSeconds, state.Duration),
 		Threshold:   float64(state.Duration),
@@ -775,14 +763,16 @@ func (s *AlertService) fireAgentOfflineAlert(ctx context.Context, config *models
 		CreatedAt:   now,
 	}
 
-	err := s.alertRepo.CreateAlertRecord(ctx, record)
+	err := s.AlertRecordRepo.CreateAlertRecord(ctx, record)
 	if err != nil {
 		s.logger.Error("创建探针离线告警记录失败", zap.Error(err))
 		return
 	}
 
 	state.LastRecordID = record.ID
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 
 	// 发送通知
 	go s.sendAlertNotification(record, agent)
@@ -790,8 +780,6 @@ func (s *AlertService) fireAgentOfflineAlert(ctx context.Context, config *models
 
 // resolveAgentOfflineAlert 恢复探针离线告警
 func (s *AlertService) resolveAgentOfflineAlert(ctx context.Context, config *models.AlertConfig, agent *models.Agent, state *models.AlertState) {
-	stateKey := fmt.Sprintf("%s:%s:agent_offline:%s", agent.ID, config.ID, agent.ID)
-
 	s.logger.Info("探针离线告警恢复",
 		zap.String("agentId", agent.ID),
 		zap.String("agentName", agent.Name),
@@ -799,7 +787,7 @@ func (s *AlertService) resolveAgentOfflineAlert(ctx context.Context, config *mod
 
 	// 更新告警记录状态
 	if state.LastRecordID > 0 {
-		existingRecord, err := s.alertRepo.GetAlertRecordByID(ctx, state.LastRecordID)
+		existingRecord, err := s.AlertRecordRepo.GetAlertRecordByID(ctx, state.LastRecordID)
 		if err != nil {
 			s.logger.Error("获取探针离线告警记录失败", zap.Error(err))
 		} else if existingRecord != nil && existingRecord.Status == "firing" {
@@ -808,7 +796,7 @@ func (s *AlertService) resolveAgentOfflineAlert(ctx context.Context, config *mod
 			existingRecord.ResolvedAt = now
 			existingRecord.UpdatedAt = now
 
-			err = s.alertRepo.UpdateAlertRecord(ctx, existingRecord)
+			err = s.AlertRecordRepo.UpdateAlertRecord(ctx, existingRecord)
 			if err != nil {
 				s.logger.Error("更新探针离线告警记录失败", zap.Error(err))
 			} else {
@@ -820,5 +808,7 @@ func (s *AlertService) resolveAgentOfflineAlert(ctx context.Context, config *mod
 
 	state.IsFiring = false
 	state.LastRecordID = 0
-	s.states.Set(stateKey, state)
+	if err := s.AlertStateRepo.SaveAlertState(ctx, state); err != nil {
+		s.logger.Error("保存告警状态失败", zap.Error(err))
+	}
 }

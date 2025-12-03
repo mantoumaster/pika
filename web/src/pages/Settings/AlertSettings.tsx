@@ -2,8 +2,8 @@ import {useEffect} from 'react';
 import {App, Button, Card, Form, InputNumber, Space, Switch} from 'antd';
 import {Save} from 'lucide-react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import type {AlertConfig} from '@/types';
-import {createAlertConfig, getAlertConfigsByAgent, updateAlertConfig} from '@/api/alert.ts';
+import {getAlertConfig, saveAlertConfig} from '@/api/property';
+import type {AlertConfig} from '@/api/property';
 import {getErrorMessage} from '@/lib/utils';
 
 const AlertSettings = () => {
@@ -12,65 +12,24 @@ const AlertSettings = () => {
     const queryClient = useQueryClient();
 
     // 获取全局告警配置
-    const {data: configsData, isLoading: configLoading} = useQuery({
-        queryKey: ['alertConfigs', 'global'],
-        queryFn: () => getAlertConfigsByAgent('global'),
+    const {data: configData, isLoading: configLoading} = useQuery({
+        queryKey: ['alertConfig'],
+        queryFn: getAlertConfig,
     });
-
-    const configId = configsData && configsData.length > 0 ? configsData[0].id : null;
 
     // 设置表单默认值
     useEffect(() => {
-        if (configsData && configsData.length > 0) {
-            const config = configsData[0];
-            form.setFieldsValue(config);
-        } else if (!configLoading) {
-            form.setFieldsValue({
-                name: '全局告警配置',
-                enabled: true,
-                agentIds: [],
-                notificationChannelIds: [],
-                rules: {
-                    cpuEnabled: true,
-                    cpuThreshold: 80,
-                    cpuDuration: 60,
-                    memoryEnabled: true,
-                    memoryThreshold: 80,
-                    memoryDuration: 60,
-                    diskEnabled: true,
-                    diskThreshold: 85,
-                    diskDuration: 60,
-                    networkEnabled: false,
-                    networkThreshold: 100,
-                    networkDuration: 60,
-                    certEnabled: true,
-                    certThreshold: 30,
-                    serviceEnabled: true,
-                    serviceDuration: 300,
-                    agentOfflineEnabled: true,
-                    agentOfflineDuration: 300,
-                },
-            });
+        if (configData) {
+            form.setFieldsValue(configData);
         }
-    }, [configsData, configLoading, form]);
+    }, [configData, configLoading, form]);
 
-    // 创建/更新 mutation
-    const createMutation = useMutation({
-        mutationFn: (config: AlertConfig) => createAlertConfig(config),
+    // 保存 mutation
+    const saveMutation = useMutation({
+        mutationFn: (config: AlertConfig) => saveAlertConfig(config),
         onSuccess: () => {
-            messageApi.success('告警配置创建成功');
-            queryClient.invalidateQueries({queryKey: ['alertConfigs', 'global']});
-        },
-        onError: (error: unknown) => {
-            messageApi.error(getErrorMessage(error, '保存配置失败'));
-        },
-    });
-
-    const updateMutation = useMutation({
-        mutationFn: ({id, config}: { id: string; config: AlertConfig }) => updateAlertConfig(id, config),
-        onSuccess: () => {
-            messageApi.success('告警配置更新成功');
-            queryClient.invalidateQueries({queryKey: ['alertConfigs', 'global']});
+            messageApi.success('告警配置保存成功');
+            queryClient.invalidateQueries({queryKey: ['alertConfig']});
         },
         onError: (error: unknown) => {
             messageApi.error(getErrorMessage(error, '保存配置失败'));
@@ -79,16 +38,7 @@ const AlertSettings = () => {
 
     const handleSubmit = async () => {
         const values = await form.validateFields();
-        const alertConfig: AlertConfig = {
-            ...values,
-            agentId: 'global',
-        };
-
-        if (configId) {
-            updateMutation.mutate({id: configId, config: alertConfig});
-        } else {
-            createMutation.mutate(alertConfig);
-        }
+        saveMutation.mutate(values as AlertConfig);
     };
 
     return (
@@ -252,7 +202,7 @@ const AlertSettings = () => {
                     <Button
                         type="primary"
                         icon={<Save size={16}/>}
-                        loading={createMutation.isPending || updateMutation.isPending}
+                        loading={saveMutation.isPending}
                         onClick={handleSubmit}
                     >
                         保存配置

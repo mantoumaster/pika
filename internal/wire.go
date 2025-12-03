@@ -63,6 +63,7 @@ type AppComponents struct {
 	TamperHandler   *handler.TamperHandler
 
 	AgentService    *service.AgentService
+	MetricService   *service.MetricService
 	AlertService    *service.AlertService
 	PropertyService *service.PropertyService
 	MonitorService  *service.MonitorService

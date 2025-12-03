@@ -21,6 +21,8 @@ const (
 	PropertyIDSystemConfig = "system_config"
 	// PropertyIDMetricsConfig 指标配置的固定 ID
 	PropertyIDMetricsConfig = "metrics_config"
+	// PropertyIDAlertConfig 告警配置的固定 ID
+	PropertyIDAlertConfig = "alert_config"
 )
 
 type PropertyService struct {
@@ -141,6 +143,21 @@ func (s *PropertyService) SetMetricsConfig(ctx context.Context, config models.Me
 	return s.Set(ctx, PropertyIDMetricsConfig, "指标数据配置", config)
 }
 
+// GetAlertConfig 获取告警配置
+func (s *PropertyService) GetAlertConfig(ctx context.Context) (*models.AlertConfig, error) {
+	var config models.AlertConfig
+	err := s.GetValue(ctx, PropertyIDAlertConfig, &config)
+	if err != nil {
+		return nil, fmt.Errorf("获取告警配置失败: %w", err)
+	}
+	return &config, nil
+}
+
+// SetAlertConfig 设置告警配置
+func (s *PropertyService) SetAlertConfig(ctx context.Context, config models.AlertConfig) error {
+	return s.Set(ctx, PropertyIDAlertConfig, "告警配置", config)
+}
+
 // defaultPropertyConfig 默认配置项定义
 type defaultPropertyConfig struct {
 	ID    string
@@ -173,6 +190,33 @@ func (s *PropertyService) InitializeDefaultConfigs(ctx context.Context) error {
 			Name: "指标数据配置",
 			Value: models.MetricsConfig{
 				RetentionHours: 168, // 默认7天
+			},
+		},
+		{
+			ID:   PropertyIDAlertConfig,
+			Name: "告警配置",
+			Value: models.AlertConfig{
+				Enabled: true, // 默认启用告警
+				Rules: models.AlertRules{
+					CPUEnabled:           true,
+					CPUThreshold:         80,
+					CPUDuration:          300, // 5分钟
+					MemoryEnabled:        true,
+					MemoryThreshold:      80,
+					MemoryDuration:       300, // 5分钟
+					DiskEnabled:          true,
+					DiskThreshold:        85,
+					DiskDuration:         300, // 5分钟
+					NetworkEnabled:       false,
+					NetworkThreshold:     100,
+					NetworkDuration:      300, // 5分钟
+					CertEnabled:          true,
+					CertThreshold:        30, // 30天
+					ServiceEnabled:       true,
+					ServiceDuration:      300, // 5分钟
+					AgentOfflineEnabled:  true,
+					AgentOfflineDuration: 300, // 5分钟
+				},
 			},
 		},
 	}

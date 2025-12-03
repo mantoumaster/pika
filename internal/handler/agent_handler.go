@@ -26,17 +26,20 @@ import (
 type AgentHandler struct {
 	logger        *zap.Logger
 	agentService  *service.AgentService
+	metricService *service.MetricService
 	monitorSvc    *service.MonitorService
 	tamperService *service.TamperService
 	wsManager     *ws.Manager
 	upgrader      websocket.Upgrader
 }
 
-func NewAgentHandler(logger *zap.Logger, agentService *service.AgentService, monitorService *service.MonitorService, tamperService *service.TamperService, wsManager *ws.Manager) *AgentHandler {
+func NewAgentHandler(logger *zap.Logger, agentService *service.AgentService, metricService *service.MetricService,
+	monitorService *service.MonitorService, tamperService *service.TamperService, wsManager *ws.Manager) *AgentHandler {
 
 	h := &AgentHandler{
 		logger:        logger,
 		agentService:  agentService,
+		metricService: metricService,
 		monitorSvc:    monitorService,
 		tamperService: tamperService,
 		wsManager:     wsManager,
@@ -155,7 +158,7 @@ func (h *AgentHandler) handleWebSocketMessage(ctx context.Context, agentID strin
 		if err := json.Unmarshal(data, &metricsWrapper); err != nil {
 			return err
 		}
-		return h.agentService.HandleMetricData(ctx, agentID, string(metricsWrapper.Type), metricsWrapper.Data)
+		return h.metricService.HandleMetricData(ctx, agentID, string(metricsWrapper.Type), metricsWrapper.Data)
 
 	case protocol.MessageTypeCommandResp:
 		// 指令响应
@@ -300,7 +303,7 @@ func (h *AgentHandler) Paging(c echo.Context) error {
 
 	pr := orz.GetPageRequest(c, "name")
 
-	builder := orz.NewPageBuilder(h.agentService.AgentRepo).
+	builder := orz.NewPageBuilder(h.agentService.AgentRepo.Repository).
 		PageRequest(pr).
 		Contains("hostname", hostname).
 		Contains("ip", ip)
@@ -430,7 +433,7 @@ func (h *AgentHandler) GetMetrics(c echo.Context) error {
 	}
 
 	// GetMetrics 内部会自动计算最优聚合间隔
-	metrics, err := h.agentService.GetMetrics(ctx, agentID, metricType, start, end, 0, interfaceName)
+	metrics, err := h.metricService.GetMetrics(ctx, agentID, metricType, start, end, 0, interfaceName)
 	if err != nil {
 		return err
 	}
@@ -456,7 +459,7 @@ func (h *AgentHandler) GetLatestMetrics(c echo.Context) error {
 		return err
 	}
 
-	metrics, err := h.agentService.GetLatestMetrics(ctx, id)
+	metrics, err := h.metricService.GetLatestMetrics(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -474,7 +477,7 @@ func (h *AgentHandler) GetAvailableNetworkInterfaces(c echo.Context) error {
 		return err
 	}
 
-	interfaces, err := h.agentService.GetAvailableNetworkInterfaces(ctx, id)
+	interfaces, err := h.metricService.GetAvailableNetworkInterfaces(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -520,7 +523,7 @@ func (h *AgentHandler) GetAgents(c echo.Context) error {
 		}
 
 		// 获取最新指标数据
-		metrics, err := h.agentService.GetLatestMetrics(ctx, agent.ID)
+		metrics, err := h.metricService.GetLatestMetrics(ctx, agent.ID)
 		if err == nil && metrics != nil {
 			item["metrics"] = metrics
 		}

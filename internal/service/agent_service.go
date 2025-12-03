@@ -133,36 +133,6 @@ func (s *AgentService) ListOnlineAgents(ctx context.Context) ([]models.Agent, er
 	return s.AgentRepo.FindOnlineAgents(ctx)
 }
 
-// HandleMetricData 处理指标数据
-func (s *AgentService) HandleMetricData(ctx context.Context, agentID string, metricType string, data json.RawMessage) error {
-	return s.metricService.HandleMetricData(ctx, agentID, metricType, data)
-}
-
-// GetMetrics 获取聚合指标数据（自动路由到聚合表或原始表）
-func (s *AgentService) GetMetrics(ctx context.Context, agentID, metricType string, start, end int64, interval int, interfaceName string) (interface{}, error) {
-	return s.metricService.GetMetrics(ctx, agentID, metricType, start, end, interval, interfaceName)
-}
-
-// GetAvailableNetworkInterfaces 获取探针的可用网卡列表
-func (s *AgentService) GetAvailableNetworkInterfaces(ctx context.Context, agentID string) ([]string, error) {
-	return s.metricService.GetAvailableNetworkInterfaces(ctx, agentID)
-}
-
-// GetLatestMetrics 获取最新指标
-func (s *AgentService) GetLatestMetrics(ctx context.Context, agentID string) (*LatestMetrics, error) {
-	return s.metricService.GetLatestMetrics(ctx, agentID)
-}
-
-// StartCleanupTask 启动数据清理任务
-func (s *AgentService) StartCleanupTask(ctx context.Context) {
-	s.metricService.StartCleanupTask(ctx)
-}
-
-// StartAggregationTask 启动聚合下采样任务
-func (s *AgentService) StartAggregationTask(ctx context.Context) {
-	s.metricService.StartAggregationTask(ctx)
-}
-
 // HandleCommandResponse 处理指令响应
 func (s *AgentService) HandleCommandResponse(ctx context.Context, agentID string, resp *protocol.CommandResponse) error {
 	s.logger.Info("command response received",

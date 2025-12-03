@@ -82,10 +82,10 @@ func setup(app *orz.App) error {
 	go components.WSManager.Run(ctx)
 
 	// 启动数据清理任务
-	go components.AgentService.StartCleanupTask(ctx)
+	go components.MetricService.StartCleanupTask(ctx)
 
 	// 启动聚合下采样任务
-	go components.AgentService.StartAggregationTask(ctx)
+	go components.MetricService.StartAggregationTask(ctx)
 
 	// 启动指标监控任务（用于告警检测）
 	go startMetricsMonitoring(ctx, components, app.Logger())
@@ -252,15 +252,9 @@ func setupApi(app *orz.App, components *AppComponents) {
 		// 通知渠道测试（从数据库读取配置测试）
 		adminApi.POST("/notification-channels/:type/test", components.PropertyHandler.TestNotificationChannel)
 
-		// 告警配置管理
-		adminApi.GET("/agents/:agentId/alert-configs", components.AlertHandler.ListAlertConfigsByAgent)
-		adminApi.POST("/alert-configs", components.AlertHandler.CreateAlertConfig)
-		adminApi.GET("/alert-configs/:id", components.AlertHandler.GetAlertConfig)
-		adminApi.PUT("/alert-configs/:id", components.AlertHandler.UpdateAlertConfig)
-		adminApi.DELETE("/alert-configs/:id", components.AlertHandler.DeleteAlertConfig)
-
 		// 告警记录查询
 		adminApi.GET("/alert-records", components.AlertHandler.ListAlertRecords)
+		adminApi.DELETE("/alert-records", components.AlertHandler.ClearAlertRecords)
 
 		// 服务监控配置
 		adminApi.GET("/monitors", components.MonitorHandler.List)
@@ -293,8 +287,8 @@ func autoMigrate(database *gorm.DB) error {
 		&models.HostMetric{},
 		&models.AuditResult{},
 		&models.Property{},
-		&models.AlertConfig{},
 		&models.AlertRecord{},
+		&models.AlertState{},
 		&models.MonitorMetric{},
 		&models.MonitorTask{},
 		&models.MonitorStats{},
@@ -376,7 +370,7 @@ func startMetricsMonitoring(ctx context.Context, components *AppComponents, logg
 
 			for _, agent := range agents {
 				// 获取最新指标
-				latest, err := components.AgentService.GetLatestMetrics(ctx, agent.ID)
+				latest, err := components.MetricService.GetLatestMetrics(ctx, agent.ID)
 				if err != nil {
 					logger.Debug("获取探针最新指标失败", zap.String("agentId", agent.ID), zap.Error(err))
 					continue
