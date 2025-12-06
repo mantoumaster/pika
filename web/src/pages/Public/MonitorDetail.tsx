@@ -534,6 +534,28 @@ const MonitorDetail = () => {
                             />
                         </div>
 
+                        {/* 当前错误信息 */}
+                        {monitorDetail.lastCheckStatus === 'down' && monitorDetail.lastCheckError && (
+                            <div className="mt-6 rounded-2xl border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-6">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-200 flex-shrink-0 mt-0.5"/>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">
+                                            监控异常
+                                        </h3>
+                                        <p className="mt-2 text-sm text-red-700 dark:text-red-200 break-words">
+                                            {monitorDetail.lastCheckError}
+                                        </p>
+                                        {monitorDetail.lastCheckTime && (
+                                            <p className="mt-2 text-xs text-red-600 dark:text-red-300">
+                                                检测时间: {formatDateTime(monitorDetail.lastCheckTime)}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* 证书信息 */}
                         {hasCert && (
                             <div className={cn(
@@ -720,6 +742,9 @@ const MonitorDetail = () => {
                                             <th className="whitespace-nowrap px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden xl:table-cell">
                                                 最后检测
                                             </th>
+                                            <th className="whitespace-nowrap px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden 2xl:table-cell">
+                                                错误信息
+                                            </th>
                                         </tr>
                                         </thead>
                                         <tbody
@@ -790,6 +815,20 @@ const MonitorDetail = () => {
                                                             className="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                                                             {formatDateTime(stats.lastCheckTime)}
                                                         </div>
+                                                    </td>
+                                                    <td className="px-4 sm:px-6 py-3 sm:py-4 hidden 2xl:table-cell">
+                                                        {stats.lastCheckStatus === 'down' && stats.lastCheckError ? (
+                                                            <div className="max-w-xs">
+                                                                <div className="flex items-start gap-2">
+                                                                    <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5"/>
+                                                                    <span className="text-xs sm:text-sm text-red-700 dark:text-red-300 break-words">
+                                                                        {stats.lastCheckError}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">-</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );
