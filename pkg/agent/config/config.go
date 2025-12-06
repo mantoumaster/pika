@@ -70,7 +70,7 @@ type CollectorConfig struct {
 	// 如果为空，默认采集系统主分区（Linux/macOS: "/"，Windows: "C:\"）
 	// 例如:
 	//   Linux/macOS: ["/", "/data", "/home"]
-	//   Windows: ["C:\\", "D:\\"]
+	//   Windows: ["C:", "D:"]
 	DiskInclude []string `yaml:"disk_include"`
 }
 
@@ -372,11 +372,11 @@ func (c *Config) ShouldExcludeNetworkInterface(interfaceName string) bool {
 // GetDiskInclude 获取磁盘包含的挂载点列表（白名单）
 // 如果配置为空，返回默认的根分区匹配规则
 // Linux/macOS: ["/"]
-// Windows: ["C:\\"]
+// Windows: ["C:"]
 func (c *Config) GetDiskInclude() []string {
 	if len(c.Collector.DiskInclude) == 0 {
 		if runtime.GOOS == "windows" {
-			return []string{"C:\\"}
+			return []string{"C:"}
 		}
 		return []string{"/"}
 	}

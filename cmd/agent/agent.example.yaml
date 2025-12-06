@@ -50,7 +50,7 @@ collector:
   # 如果为空，默认采集系统主分区（Linux/macOS: "/"，Windows: "C:\"）
   # 例如:
   #   Linux/macOS: ["/", "/data", "/home"]
-  #   Windows: ["C:\\", "D:\\"]
+  #   Windows: ["C:", "D:"]
   disk_include:
     - "/"              # 只采集根分区
 
