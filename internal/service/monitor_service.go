@@ -610,7 +610,7 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 		return err
 	}
 
-	// 收集所有有效的统计数据ID（应该保留的）
+	// 收集所有有效的监控任务ID
 	validStatsIDs := make(map[string]bool)
 
 	// 为每个监控任务的每个探针计算统计数据
@@ -628,7 +628,7 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 				continue
 			}
 
-			// 记录有效的统计ID
+			// 记录有效的监控任务ID
 			validStatsIDs[stats.ID] = true
 
 			if err := s.monitorStatsRepo.Save(ctx, stats); err != nil {
@@ -640,7 +640,7 @@ func (s *MonitorService) CalculateMonitorStats(ctx context.Context) error {
 		}
 	}
 
-	// 清理无效的统计数据（不在有效列表中的）
+	// 清理无效监控任务的统计数据
 	if err := s.cleanupInvalidStats(ctx, validStatsIDs); err != nil {
 		s.logger.Error("清理无效统计数据失败", zap.Error(err))
 		// 不返回错误，继续运行
@@ -900,8 +900,8 @@ func (s *MonitorService) clearCache(monitorID string) {
 	s.statsCache.Delete(fmt.Sprintf("agents:%s", monitorID))
 }
 
-// cleanupInvalidStats 清理无效的统计数据
-// 删除不在有效ID列表中的统计数据（说明对应的监控任务已禁用/删除，或探针已不在目标范围内）
+// cleanupInvalidStats 按监控任务维度清理无效的统计数据
+// 删除不在有效监控任务列表中的所有统计数据（监控任务被禁用或删除）
 func (s *MonitorService) cleanupInvalidStats(ctx context.Context, validStatsIDs map[string]bool) error {
 	// 获取所有现有的统计数据
 	allStats, err := s.monitorStatsRepo.FindAll(ctx)
@@ -912,6 +912,7 @@ func (s *MonitorService) cleanupInvalidStats(ctx context.Context, validStatsIDs 
 	// 收集需要删除的统计数据ID
 	idsToDelete := make([]string, 0)
 	for _, stats := range allStats {
+		// 如果该统计数据对应的监控任务不在有效列表中，删除该统计数据
 		if !validStatsIDs[stats.ID] {
 			idsToDelete = append(idsToDelete, stats.ID)
 		}
@@ -919,7 +920,8 @@ func (s *MonitorService) cleanupInvalidStats(ctx context.Context, validStatsIDs 
 
 	// 批量删除无效的统计数据
 	if len(idsToDelete) > 0 {
-		s.logger.Info("清理无效的监控统计数据", zap.Int("count", len(idsToDelete)))
+		s.logger.Info("清理无效的监控统计数据",
+			zap.Int("count", len(idsToDelete)))
 		if err := s.monitorStatsRepo.DeleteByIDs(ctx, idsToDelete); err != nil {
 			return err
 		}
