@@ -135,7 +135,7 @@ const ChartPlaceholder = ({
 }) => (
     <div
         className={cn(
-            "flex items-center justify-center rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800/40",
+            "flex items-center justify-center rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400 ",
             heightClass
         )}
     >
@@ -159,7 +159,7 @@ const Card = ({
     children: ReactNode;
 }) => (
     <section
-        className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-6 ">
+        className="rounded-3xl border border-slate-200 dark:border-slate-700  p-6 ">
         {(title || description || action) && (
             <div
                 className="flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700 pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -180,23 +180,23 @@ type AccentVariant = 'blue' | 'emerald' | 'purple' | 'amber';
 
 const accentThemes: Record<AccentVariant, { icon: string; badge: string; highlight: string }> = {
     blue: {
-        icon: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-        badge: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+        icon: ' text-slate-700 dark:text-slate-300',
+        badge: ' text-slate-700 dark:text-slate-300',
         highlight: 'text-slate-700 dark:text-slate-300',
     },
     emerald: {
-        icon: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-        badge: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+        icon: ' text-slate-700 dark:text-slate-300',
+        badge: ' text-slate-700 dark:text-slate-300',
         highlight: 'text-slate-700 dark:text-slate-300',
     },
     purple: {
-        icon: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-        badge: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+        icon: ' text-slate-700 dark:text-slate-300',
+        badge: ' text-slate-700 dark:text-slate-300',
         highlight: 'text-slate-700 dark:text-slate-300',
     },
     amber: {
-        icon: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-        badge: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+        icon: ' text-slate-700 dark:text-slate-300',
+        badge: ' text-slate-700 dark:text-slate-300',
         highlight: 'text-slate-700 dark:text-slate-300',
     },
 };
@@ -405,7 +405,7 @@ const SnapshotGrid = ({cards}: { cards: SnapshotCardData[] }) => (
             return (
                 <div
                     key={card.key}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-4  transition hover:-translate-y-0.5"
+                    className="rounded-2xl border border-slate-200 dark:border-slate-700  p-4  transition hover:-translate-y-0.5"
                 >
                     <div className="mb-3 flex items-start justify-between">
                         <div className="flex items-center gap-2">
@@ -885,7 +885,7 @@ const ServerDetail = () => {
     }
 
     return (
-        <div className="bg-slate-50 dark:bg-[#141414]">
+        <div className="dark:bg-[#141414]">
             <div className="mx-auto flex max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
                 <section
                     className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 p-6 text-white">
@@ -1035,7 +1035,7 @@ const ServerDetail = () => {
                             <section>
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                     <span
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                         <Cpu className="h-4 w-4"/>
                                     </span>
                                     CPU 使用率
@@ -1084,7 +1084,7 @@ const ServerDetail = () => {
                             <section>
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                     <span
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                         <MemoryStick className="h-4 w-4"/>
                                     </span>
                                     内存使用率
@@ -1134,7 +1134,7 @@ const ServerDetail = () => {
                                 <div className="mb-3 flex items-center justify-between">
                                     <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                         <span
-                                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                             <Network className="h-4 w-4"/>
                                         </span>
                                         网络流量（MB/s）
@@ -1241,7 +1241,7 @@ const ServerDetail = () => {
                             <section>
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                     <span
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                         <HardDrive className="h-4 w-4"/>
                                     </span>
                                     磁盘 I/O (MB/s)
@@ -1303,7 +1303,7 @@ const ServerDetail = () => {
                             <section>
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                     <span
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                         <Network className="h-4 w-4"/>
                                     </span>
                                     网络连接统计
@@ -1383,7 +1383,7 @@ const ServerDetail = () => {
                                 <section>
                                     <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                         <span
-                                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                             <Zap className="h-4 w-4"/>
                                         </span>
                                         GPU 使用率与温度
@@ -1445,7 +1445,7 @@ const ServerDetail = () => {
                                     <div className="mb-3 flex items-center justify-between">
                                         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white">
                                             <span
-                                                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                                 <Thermometer className="h-4 w-4"/>
                                             </span>
                                             系统温度
@@ -1454,7 +1454,7 @@ const ServerDetail = () => {
                                             <select
                                                 value={selectedTempType}
                                                 onChange={(e) => setSelectedTempType(e.target.value)}
-                                                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 focus:border-slate-500 dark:focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-600/40"
+                                                className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 focus:border-slate-500 dark:focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-600/40"
                                             >
                                                 <option value="all">所有类型</option>
                                                 {temperatureTypes.map((type) => (
@@ -1516,12 +1516,12 @@ const ServerDetail = () => {
                                 {latestMetrics.gpu.map((gpu) => (
                                     <div
                                         key={gpu.index}
-                                        className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-4"
+                                        className="rounded-2xl border border-slate-200 dark:border-slate-700  p-4"
                                     >
                                         <div className="mb-3 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <span
-                                                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                                    className="flex h-9 w-9 items-center justify-center rounded-lg  text-slate-700 dark:text-slate-300">
                                                     <Zap className="h-4 w-4"/>
                                                 </span>
                                                 <div>
@@ -1569,7 +1569,7 @@ const ServerDetail = () => {
                                 {latestMetrics.temperature.sort((a, b) => a.sensorKey.localeCompare(b.sensorKey)).map((temp) => (
                                     <div
                                         key={temp.sensorKey}
-                                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-white dark:from-slate-700 dark:to-slate-800 p-4"
+                                        className="rounded-xl border border-slate-200 dark:border-slate-700 p-4"
                                     >
                                         <div className="flex items-center gap-2 mb-2">
                                             <Thermometer className="h-4 w-4 text-slate-600 dark:text-slate-400"/>

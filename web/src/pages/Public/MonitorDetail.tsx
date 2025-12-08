@@ -15,7 +15,12 @@ import {
 } from 'lucide-react';
 import type {TooltipProps} from 'recharts';
 import {Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,} from 'recharts';
-import {type AggregatedMonitorMetric, getMonitorHistory, getMonitorStatsById, getMonitorAgentStats} from '@/api/monitor.ts';
+import {
+    type AggregatedMonitorMetric,
+    getMonitorAgentStats,
+    getMonitorHistory,
+    getMonitorStatsById
+} from '@/api/monitor.ts';
 import type {MonitorStats, PublicMonitor} from '@/types';
 import {cn} from '@/lib/utils';
 
@@ -51,7 +56,7 @@ const formatDateTime = (timestamp: number): string => {
 const formatPercentValue = (value: number): string => (Number.isFinite(value) ? value.toFixed(2) : '0.00');
 
 const LoadingSpinner = () => (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#141414]">
+    <div className="flex min-h-screen items-center justify-center dark:bg-[#141414]">
         <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-400"/>
             <p className="text-sm text-slate-500 dark:text-slate-400">数据加载中，请稍候...</p>
@@ -60,10 +65,10 @@ const LoadingSpinner = () => (
 );
 
 const EmptyState = ({message = '监控数据不存在'}: { message?: string }) => (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#141414]">
+    <div className="flex min-h-screen items-center justify-center dark:bg-[#141414]">
         <div className="flex flex-col items-center gap-3 text-center">
             <div
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-300">
+                className="flex h-16 w-16 items-center justify-center rounded-full  text-slate-400 dark:text-slate-300">
                 <Shield className="h-8 w-8"/>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">{message}</p>
@@ -96,7 +101,7 @@ const ChartPlaceholder = ({
 }) => (
     <div
         className={cn(
-            "flex items-center justify-center rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800/40",
+            "flex items-center justify-center rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400",
             heightClass
         )}
     >
@@ -120,7 +125,7 @@ const Card = ({
     children: ReactNode;
 }) => (
     <section
-        className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-6">
+        className="rounded-3xl border border-slate-200 dark:border-slate-700   p-6">
         {(title || description || action) && (
             <div
                 className="flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700 pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -212,7 +217,7 @@ const StatCard = ({icon, label, value, color = 'blue'}: {
 
     return (
         <div
-            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-4 transition hover:-translate-y-0.5">
+            className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 transition hover:-translate-y-0.5">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", theme.icon)}>
@@ -443,7 +448,7 @@ const MonitorDetail = () => {
     ];
 
     return (
-        <div className="bg-slate-50 dark:bg-[#141414]">
+        <div className="dark:bg-[#141414]">
             <div className="mx-auto flex max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
                 {/* Hero Section */}
                 <section
@@ -536,9 +541,11 @@ const MonitorDetail = () => {
 
                         {/* 当前错误信息 */}
                         {monitorDetail.lastCheckStatus === 'down' && monitorDetail.lastCheckError && (
-                            <div className="mt-6 rounded-2xl border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-6">
+                            <div
+                                className="mt-6 rounded-2xl border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-6">
                                 <div className="flex items-start gap-3">
-                                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-200 flex-shrink-0 mt-0.5"/>
+                                    <AlertCircle
+                                        className="h-6 w-6 text-red-600 dark:text-red-200 flex-shrink-0 mt-0.5"/>
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">
                                             监控异常
@@ -719,7 +726,7 @@ const MonitorDetail = () => {
                             <div className="inline-block min-w-full align-middle">
                                 <div className="overflow-hidden">
                                     <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-                                        <thead className="bg-slate-50 dark:bg-slate-800">
+                                        <thead className="dark:bg-slate-800">
                                         <tr>
                                             <th className="whitespace-nowrap px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-700 dark:text-white">
                                                 探针 ID
@@ -748,12 +755,12 @@ const MonitorDetail = () => {
                                         </tr>
                                         </thead>
                                         <tbody
-                                            className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800/40">
+                                            className="divide-y divide-slate-100 dark:divide-slate-700">
                                         {monitorStats.map((stats, index) => {
                                             const color = AGENT_COLORS[index % AGENT_COLORS.length];
                                             return (
                                                 <tr key={stats.id}
-                                                    className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                                                    className="transition-colors">
                                                     <td className="whitespace-nowrap px-4 sm:px-6 py-3 sm:py-4">
                                                         <div className="flex items-center gap-2">
                                                         <span
@@ -820,14 +827,17 @@ const MonitorDetail = () => {
                                                         {stats.lastCheckStatus === 'down' && stats.lastCheckError ? (
                                                             <div className="max-w-xs">
                                                                 <div className="flex items-start gap-2">
-                                                                    <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5"/>
-                                                                    <span className="text-xs sm:text-sm text-red-700 dark:text-red-300 break-words">
+                                                                    <AlertCircle
+                                                                        className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5"/>
+                                                                    <span
+                                                                        className="text-xs sm:text-sm text-red-700 dark:text-red-300 break-words">
                                                                         {stats.lastCheckError}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">-</span>
+                                                            <span
+                                                                className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">-</span>
                                                         )}
                                                     </td>
                                                 </tr>
