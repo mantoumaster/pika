@@ -50,9 +50,9 @@ const ProgressBar = ({percent, colorClass}: { percent: number; colorClass: strin
 );
 
 const LoadingSpinner = () => (
-    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-slate-950">
+    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#141414]">
         <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-400"/>
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400"/>
             <p className="text-sm text-slate-500 dark:text-slate-400">数据加载中，请稍候...</p>
         </div>
     </div>
@@ -66,11 +66,11 @@ interface EmptyStateProps {
 
 const EmptyState = ({title, description, extra}: EmptyStateProps) => (
     <div
-        className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-12 text-center backdrop-blur">
+        className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-[#141414] p-12 text-center backdrop-blur">
         <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300">
             <HardDrive className="h-7 w-7"/>
         </div>
-        <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h3>
+        <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
         <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">{description}</p>
         {extra ? <div className="mt-4">{extra}</div> : null}
     </div>
@@ -239,10 +239,10 @@ const ServerList = () => {
                         <div className="flex flex-col gap-3">
                             <div className="grid grid-cols-3 gap-3">
                                 <div
-                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/60 p-3">
+                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                             <Cpu className="h-3.5 w-3.5"/>
                                         </div>
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-200">CPU</span>
@@ -254,10 +254,10 @@ const ServerList = () => {
                                 </div>
 
                                 <div
-                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/60 p-3">
+                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                             <MemoryStick className="h-3.5 w-3.5"/>
                                         </div>
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-200">内存</span>
@@ -269,10 +269,10 @@ const ServerList = () => {
                                 </div>
 
                                 <div
-                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/60 p-3">
+                                    className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                             <HardDrive className="h-3.5 w-3.5"/>
                                         </div>
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-200">磁盘</span>
@@ -286,10 +286,10 @@ const ServerList = () => {
 
                             <div className="space-y-2">
                                 <div
-                                    className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 px-3 py-2.5">
+                                    className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-3 py-2.5">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                             <Network className="h-3.5 w-3.5"/>
                                         </div>
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-200">实时速率</span>
@@ -306,10 +306,10 @@ const ServerList = () => {
                                     </div>
                                 </div>
                                 <div
-                                    className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 px-3 py-2.5">
+                                    className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-3 py-2.5">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                             <EthernetPortIcon className="h-3.5 w-3.5"/>
                                         </div>
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-200">累计流量</span>
@@ -336,10 +336,10 @@ const ServerList = () => {
     const renderListView = () => (
         <>
             {/* 桌面端：使用表格布局 */}
-            <div className="hidden overflow-hidden rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 lg:block">
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                    <thead className="bg-blue-50 dark:bg-slate-900/70">
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-200">
+            <div className="hidden overflow-hidden rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-[#141414] lg:block">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-white/10 text-sm">
+                    <thead className="bg-blue-50 dark:bg-slate-800">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">
                         <th className="px-5 py-3">服务器</th>
                         <th className="px-5 py-3">系统</th>
                         <th className="px-5 py-3">CPU</th>
@@ -348,7 +348,7 @@ const ServerList = () => {
                         <th className="px-5 py-3">网络</th>
                     </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-100">
+                    <tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-700 dark:text-slate-200">
                     {filteredAgents.map((agent) => {
                         const cpuUsage = agent.metrics?.cpu?.usagePercent ?? 0;
                         const cpuModel = agent.metrics?.cpu?.modelName || '未知';
@@ -380,7 +380,7 @@ const ServerList = () => {
                                     }
                                 }}
                                 className={cn(
-                                    "cursor-pointer transition hover:bg-blue-50 dark:hover:bg-slate-900/70 focus-within:bg-blue-50 dark:focus-within:bg-slate-900/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200",
+                                    "cursor-pointer transition hover:bg-blue-50 dark:hover:bg-slate-800/50 focus-within:bg-blue-50 dark:focus-within:bg-slate-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200",
                                     agent.status !== 1 && "filter grayscale"
                                 )}
                             >
@@ -553,7 +553,7 @@ const ServerList = () => {
                         })}
                     </div>
                     {/* 右侧渐变提示 */}
-                    <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-white dark:from-slate-950" />
+                    <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-white dark:from-[#141414]" />
                 </div>
             )}
 

@@ -5,7 +5,7 @@ const PublicFooter = () => {
     const icpCode = window.SystemConfig?.ICPCode || '';
 
     return (
-        <footer className="border-t border-slate-100 dark:border-slate-700 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
+        <footer className="border-t border-slate-100 dark:border-white/10 bg-gradient-to-b from-white to-slate-50 dark:from-[#141414] dark:to-[#0d0d0d]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* 底部版权信息 */}
                 <div className="py-6">
