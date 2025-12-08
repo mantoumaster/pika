@@ -220,7 +220,7 @@ const ServerList = () => {
                                         agent.tags?.map((tag, index) => (
                                             <span
                                                 key={index}
-                                                className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-slate-700 dark:text-slate-300">
+                                                className="inline-flex items-center gap-1 rounded bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 text-blue-700 dark:text-blue-200">
                                                 {tag}
                                             </span>
                                         ))
@@ -404,7 +404,7 @@ const ServerList = () => {
                                         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             {agent.tags && agent.tags.length > 0 && (
                                                 agent.tags?.map((tag, index) => (
-                                                    <span key={index} className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                                                    <span key={index} className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-200">
                                                         {tag}
                                                     </span>
                                                 ))
@@ -510,7 +510,7 @@ const ServerList = () => {
                             className={cn(
                                 "cursor-pointer inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
                                 selectedTag === ''
-                                    ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-md shadow-slate-500/30 dark:shadow-slate-700/30'
+                                    ? 'bg-blue-500 dark:bg-blue-500 text-white shadow-md shadow-blue-500/30 dark:shadow-blue-500/30'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                             )}
                         >
@@ -518,7 +518,7 @@ const ServerList = () => {
                             <span className={cn(
                                 "inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold",
                                 selectedTag === ''
-                                    ? 'bg-slate-500 dark:bg-slate-600 text-white'
+                                    ? 'bg-blue-400 dark:bg-blue-400 text-white'
                                     : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                             )}>
                                 {agents.length}
@@ -535,7 +535,7 @@ const ServerList = () => {
                                     className={cn(
                                         "cursor-pointer inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
                                         selectedTag === tag
-                                            ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-md shadow-slate-500/30 dark:shadow-slate-700/30'
+                                            ? 'bg-blue-500 dark:bg-blue-500 text-white shadow-md shadow-blue-500/30 dark:shadow-blue-500/30'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     )}
                                 >
@@ -543,7 +543,7 @@ const ServerList = () => {
                                     <span className={cn(
                                         "inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold",
                                         selectedTag === tag
-                                            ? 'bg-slate-500 dark:bg-slate-600 text-white'
+                                            ? 'bg-blue-400 dark:bg-blue-400 text-white'
                                             : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                                     )}>
                                         {count}
