@@ -336,7 +336,7 @@ const ServerList = () => {
     const renderListView = () => (
         <>
             {/* 桌面端：使用表格布局 */}
-            <div className="hidden overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 lg:block">
+            <div className="hidden overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 lg:block">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
                     <thead className="bg-slate-50 dark:bg-slate-800">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">
