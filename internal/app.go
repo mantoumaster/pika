@@ -237,6 +237,7 @@ func setupApi(app *orz.App, components *AppComponents) {
 		adminApi.GET("/agents/tags", components.AgentHandler.GetTags)
 		adminApi.GET("/agents/:id", components.AgentHandler.GetForAdmin)
 		adminApi.PUT("/agents/:id", components.AgentHandler.UpdateInfo)
+		adminApi.POST("/agents/batch/tags", components.AgentHandler.BatchUpdateTags)
 		adminApi.DELETE("/agents/:id", components.AgentHandler.Delete)
 		adminApi.POST("/agents/:id/command", components.AgentHandler.SendCommand)
 

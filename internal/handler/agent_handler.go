@@ -910,3 +910,39 @@ main`
 	c.Response().Header().Set("Content-Type", "text/plain; charset=utf-8")
 	return c.String(http.StatusOK, script)
 }
+
+// BatchUpdateTags 批量更新探针标签
+func (h *AgentHandler) BatchUpdateTags(c echo.Context) error {
+	var req struct {
+		AgentIDs  []string `json:"agentIds"`
+		Tags      []string `json:"tags"`
+		Operation string   `json:"operation"` // "add", "remove", "replace"
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return orz.NewError(400, "请求参数错误")
+	}
+
+	if len(req.AgentIDs) == 0 {
+		return orz.NewError(400, "探针ID列表不能为空")
+	}
+
+	// 验证操作类型
+	validOperations := map[string]bool{"add": true, "remove": true, "replace": true}
+	if req.Operation == "" {
+		req.Operation = "replace"
+	}
+	if !validOperations[req.Operation] {
+		return orz.NewError(400, "不支持的操作类型")
+	}
+
+	ctx := c.Request().Context()
+	if err := h.agentService.BatchUpdateTags(ctx, req.AgentIDs, req.Tags, req.Operation); err != nil {
+		return err
+	}
+
+	return orz.Ok(c, orz.Map{
+		"message": "批量更新标签成功",
+		"count":   len(req.AgentIDs),
+	})
+}

@@ -404,6 +404,75 @@ func (s *AgentService) GetAllTags(ctx context.Context) ([]string, error) {
 	return tags, nil
 }
 
+// BatchUpdateTags 批量更新探针标签
+// operation: "add" 添加标签, "remove" 移除标签, "replace" 替换标签
+func (s *AgentService) BatchUpdateTags(ctx context.Context, agentIDs []string, tags []string, operation string) error {
+	if len(agentIDs) == 0 {
+		return fmt.Errorf("探针ID列表不能为空")
+	}
+
+	if operation == "" {
+		operation = "replace"
+	}
+
+	agents, err := s.AgentRepo.FindByIdIn(ctx, agentIDs)
+	if err != nil {
+		return err
+	}
+
+	// 在事务中执行批量更新
+	return s.Transaction(ctx, func(ctx context.Context) error {
+		for _, agent := range agents {
+			// 根据操作类型处理标签
+			var newTags []string
+			switch operation {
+			case "add":
+				// 添加标签（去重）
+				existingTagsMap := make(map[string]bool)
+				for _, tag := range agent.Tags {
+					existingTagsMap[tag] = true
+				}
+				newTags = append([]string{}, agent.Tags...)
+				for _, tag := range tags {
+					if !existingTagsMap[tag] {
+						newTags = append(newTags, tag)
+					}
+				}
+			case "remove":
+				// 移除标签
+				removeTagsMap := make(map[string]bool)
+				for _, tag := range tags {
+					removeTagsMap[tag] = true
+				}
+				for _, tag := range agent.Tags {
+					if !removeTagsMap[tag] {
+						newTags = append(newTags, tag)
+					}
+				}
+			case "replace":
+				// 替换标签
+				newTags = tags
+			default:
+				return fmt.Errorf("不支持的操作类型: %s", operation)
+			}
+
+			// 更新探针标签
+			agent.Tags = newTags
+			agent.UpdatedAt = time.Now().UnixMilli()
+			if err := s.AgentRepo.UpdateById(ctx, &agent); err != nil {
+				s.logger.Error("更新探针标签失败", zap.String("agentId", agent.ID), zap.Error(err))
+				return err
+			}
+
+			s.logger.Info("探针标签更新成功",
+				zap.String("agentId", agent.ID),
+				zap.String("operation", operation),
+				zap.Strings("tags", newTags))
+		}
+		return nil
+	})
+}
+
 func (s *AgentService) InitStatus(ctx context.Context) error {
 	agents, err := s.AgentRepo.FindAll(ctx)
 	if err != nil {

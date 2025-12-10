@@ -469,3 +469,19 @@ export const getTags = () => {
 export const getPublicTags = () => {
     return get<GetTagsResponse>('/agents/tags');
 };
+
+// 批量更新探针标签
+export interface BatchUpdateTagsRequest {
+    agentIds: string[];
+    tags: string[];
+    operation: 'add' | 'remove' | 'replace'; // add: 添加标签, remove: 移除标签, replace: 替换标签
+}
+
+export interface BatchUpdateTagsResponse {
+    message: string;
+    count: number;
+}
+
+export const batchUpdateTags = (data: BatchUpdateTagsRequest) => {
+    return post<BatchUpdateTagsResponse>('/admin/agents/batch/tags', data);
+};

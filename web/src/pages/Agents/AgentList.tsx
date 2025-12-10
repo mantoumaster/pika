@@ -3,9 +3,9 @@ import {useNavigate} from 'react-router-dom';
 import type {ActionType, ProColumns} from '@ant-design/pro-components';
 import {ProTable} from '@ant-design/pro-components';
 import type {MenuProps} from 'antd';
-import {App, Button, DatePicker, Divider, Dropdown, Form, Input, Modal, Select, Space, Tag} from 'antd';
-import {Edit, Eye, MoreVertical, Plus, RefreshCw, Shield, Trash2} from 'lucide-react';
-import {deleteAgent, getAgentPaging, getTags, updateAgentInfo} from '@/api/agent.ts';
+import {App, Button, DatePicker, Divider, Dropdown, Form, Input, Modal, Radio, Select, Space, Tag} from 'antd';
+import {Edit, Eye, MoreVertical, Plus, RefreshCw, Shield, Tags, Trash2} from 'lucide-react';
+import {batchUpdateTags, deleteAgent, getAgentPaging, getTags, updateAgentInfo} from '@/api/agent.ts';
 import type {Agent} from '@/types';
 import {getErrorMessage} from '@/lib/utils';
 import dayjs from 'dayjs';
@@ -16,10 +16,14 @@ const AgentList = () => {
     const {message: messageApi, modal} = App.useApp();
     const actionRef = useRef<ActionType>(null);
     const [form] = Form.useForm();
+    const [batchForm] = Form.useForm();
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [batchTagModalVisible, setBatchTagModalVisible] = useState(false);
     const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
     const [loading, setLoading] = useState(false);
+    const [batchLoading, setBatchLoading] = useState(false);
     const [existingTags, setExistingTags] = useState<string[]>([]);
+    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
     // 加载已有的标签
     useEffect(() => {
@@ -103,6 +107,42 @@ const AgentList = () => {
                 }
             },
         });
+    };
+
+    // 打开批量操作标签模态框
+    const handleBatchTags = () => {
+        if (selectedRowKeys.length === 0) {
+            messageApi.warning('请先选择要操作的探针');
+            return;
+        }
+        batchForm.setFieldsValue({
+            operation: 'add',
+            tags: [],
+        });
+        setBatchTagModalVisible(true);
+    };
+
+    // 批量更新标签
+    const handleBatchSave = async () => {
+        try {
+            const values = await batchForm.validateFields();
+            setBatchLoading(true);
+
+            await batchUpdateTags({
+                agentIds: selectedRowKeys as string[],
+                tags: values.tags || [],
+                operation: values.operation,
+            });
+
+            messageApi.success(`成功${values.operation === 'add' ? '添加' : values.operation === 'remove' ? '移除' : '替换'}了 ${selectedRowKeys.length} 个探针的标签`);
+            setBatchTagModalVisible(false);
+            setSelectedRowKeys([]);
+            actionRef.current?.reload();
+        } catch (error: unknown) {
+            messageApi.error(getErrorMessage(error, '批量更新标签失败'));
+        } finally {
+            setBatchLoading(false);
+        }
     };
 
     const columns: ProColumns<Agent>[] = [
@@ -294,6 +334,13 @@ const AgentList = () => {
                 description="管理和监控系统探针状态"
                 actions={[
                     {
+                        key: 'batch-tags',
+                        label: `批量操作标签${selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}`,
+                        icon: <Tags size={16}/>,
+                        onClick: handleBatchTags,
+                        disabled: selectedRowKeys.length === 0,
+                    },
+                    {
                         key: 'register',
                         label: '注册探针',
                         icon: <Plus size={16}/>,
@@ -323,6 +370,21 @@ const AgentList = () => {
                     showSizeChanger: true,
                 }}
                 options={false}
+                rowSelection={{
+                    selectedRowKeys,
+                    onChange: (keys) => setSelectedRowKeys(keys),
+                    preserveSelectedRowKeys: true,
+                }}
+                tableAlertRender={({selectedRowKeys}) => (
+                    <Space size={16}>
+                        <span>已选择 <strong>{selectedRowKeys.length}</strong> 项</span>
+                    </Space>
+                )}
+                tableAlertOptionRender={() => (
+                    <Space size={16}>
+                        <a onClick={() => setSelectedRowKeys([])}>取消选择</a>
+                    </Space>
+                )}
                 request={async (params) => {
                     const {current = 1, pageSize = 10, hostname, ip, status} = params;
                     try {
@@ -400,6 +462,43 @@ const AgentList = () => {
                                 {label: '匿名可见', value: 'public'},
                                 {label: '登录可见', value: 'private'},
                             ]}
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* 批量操作标签模态框 */}
+            <Modal
+                title={`批量操作标签 (已选择 ${selectedRowKeys.length} 个探针)`}
+                open={batchTagModalVisible}
+                onOk={handleBatchSave}
+                onCancel={() => setBatchTagModalVisible(false)}
+                confirmLoading={batchLoading}
+                width={600}
+            >
+                <Form form={batchForm} layout="vertical">
+                    <Form.Item
+                        label="操作类型"
+                        name="operation"
+                        rules={[{required: true, message: '请选择操作类型'}]}
+                    >
+                        <Radio.Group>
+                            <Radio value="add">添加标签（保留原有标签）</Radio>
+                            <Radio value="remove">移除标签（从原有标签中移除）</Radio>
+                            <Radio value="replace">替换标签（完全替换为新标签）</Radio>
+                        </Radio.Group>
+                    </Form.Item>
+                    <Form.Item
+                        label="标签"
+                        name="tags"
+                        rules={[{required: true, message: '请输入或选择标签'}]}
+                        extra="可以从已有标签中选择，或输入新标签后按回车添加"
+                    >
+                        <Select
+                            mode="tags"
+                            placeholder="请选择或输入标签"
+                            options={existingTags?.map(tag => ({label: tag, value: tag}))}
+                            tokenSeparators={[',']}
                         />
                     </Form.Item>
                 </Form>
