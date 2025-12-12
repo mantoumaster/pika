@@ -84,8 +84,9 @@ func (s *MetricService) convertToMetrics(agentID string, metricType string, data
 	case protocol.MetricTypeTemperature:
 		tempDataList := data.([]protocol.TemperatureData)
 		for _, tempData := range tempDataList {
+			// 只使用稳定的 sensor_label (Type) 作为标签
+			// 不使用 sensor_key，因为同一类型的最大值可能来自不同传感器，会导致产生多条时间序列
 			labels := map[string]string{
-				"sensor_key":   tempData.SensorKey,
 				"sensor_label": tempData.Type,
 			}
 			metrics = append(metrics, createMetric("pika_temperature_celsius", agentID, labels, tempData.Temperature, timestamp))
