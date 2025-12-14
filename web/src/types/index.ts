@@ -296,9 +296,44 @@ export interface PublicMonitor {
 
     status: string;
     responseTime: number;
+    responseTimeMin: number;
+    responseTimeMax: number;
     certExpiryTime: number;
     certDaysLeft: number;
+    agentStats: {
+        up: number;
+        down: number;
+        unknown: number;
+    };
     lastCheckTime: number;
+}
+
+// 监控详情（整合版）
+export interface MonitorDetail {
+    id: string;
+    name: string;
+    type: 'http' | 'https' | 'tcp' | 'icmp' | 'ping';
+    target: string;
+    showTargetPublic: boolean;
+    description?: string;
+    enabled: boolean;
+    interval: number;
+    stats: {
+        status: string;
+        responseTime: number;
+        responseTimeMin: number;
+        responseTimeMax: number;
+        lastCheckTime: number;
+        agentCount: number;
+        agentStats: {
+            up: number;
+            down: number;
+            unknown: number;
+        };
+        certExpiryTime: number;
+        certDaysLeft: number;
+    };
+    agents: AgentMonitorStat[];
 }
 
 // 监控统计数据

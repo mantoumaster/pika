@@ -1,5 +1,5 @@
 import {del, get, post, put} from './request';
-import type {MonitorListResponse, MonitorTask, MonitorTaskRequest, PublicMonitor} from '../types';
+import type {MonitorDetail, MonitorListResponse, MonitorTask, MonitorTaskRequest, PublicMonitor} from '../types';
 
 export const listMonitors = (page: number = 1, pageSize: number = 10, keyword?: string) => {
     const params = new URLSearchParams();
@@ -42,6 +42,11 @@ export const getMonitorStatsById = (id: string) => {
 // 公开接口 - 获取指定监控各探针的统计数据（直接从 VictoriaMetrics 查询）
 export const getMonitorAgentStats = (id: string) => {
     return get<AgentMonitorStat[]>(`/monitors/${encodeURIComponent(id)}/agents`);
+};
+
+// 公开接口 - 获取监控详情（整合版，包含stats和agents）
+export const getMonitorDetail = (id: string) => {
+    return get<MonitorDetail>(`/monitors/${encodeURIComponent(id)}`);
 };
 
 // VictoriaMetrics 时序数据点

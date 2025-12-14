@@ -12,7 +12,6 @@ import (
 	"github.com/dushixiang/pika/internal/protocol"
 	"github.com/dushixiang/pika/internal/repo"
 	ws "github.com/dushixiang/pika/internal/websocket"
-	"github.com/go-orz/cache"
 	"github.com/go-orz/orz"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -28,9 +27,6 @@ type MonitorService struct {
 	metricRepo    *repo.MetricRepo
 	metricService *MetricService
 	wsManager     *ws.Manager
-
-	// 监控概览缓存：缓存监控任务列表（使用不同的 key 区分 public 和 private）
-	overviewCache cache.Cache[string, []metric.PublicMonitorOverview]
 
 	// 调度器引用（用于动态管理任务）
 	scheduler MonitorScheduler
@@ -52,9 +48,6 @@ func NewMonitorService(logger *zap.Logger, db *gorm.DB, metricService *MetricSer
 		metricRepo:    repo.NewMetricRepo(db),
 		metricService: metricService,
 		wsManager:     wsManager,
-
-		// 缓存 5 分钟，避免频繁查询
-		overviewCache: cache.New[string, []metric.PublicMonitorOverview](5 * time.Minute),
 	}
 }
 
@@ -115,9 +108,6 @@ func (s *MonitorService) CreateMonitor(ctx context.Context, req *MonitorTaskRequ
 		return nil, err
 	}
 
-	// 清理缓存
-	s.clearCache(task.ID)
-
 	// 如果任务启用，添加到调度器
 	if task.Enabled && s.scheduler != nil {
 		if err := s.scheduler.AddTask(task.ID, task.Interval); err != nil {
@@ -165,9 +155,6 @@ func (s *MonitorService) UpdateMonitor(ctx context.Context, id string, req *Moni
 		return nil, err
 	}
 
-	// 清理缓存
-	s.clearCache(task.ID)
-
 	// 更新调度器
 	if s.scheduler != nil {
 		// 如果从禁用变为启用，或者间隔时间改变
@@ -214,9 +201,6 @@ func (s *MonitorService) DeleteMonitor(ctx context.Context, id string) error {
 		return err
 	}
 
-	// 清理缓存
-	s.clearCache(id)
-
 	// 从调度器中移除
 	if s.scheduler != nil {
 		s.scheduler.RemoveTask(id)
@@ -227,29 +211,10 @@ func (s *MonitorService) DeleteMonitor(ctx context.Context, id string) error {
 
 // ListByAuth 返回公开展示所需的监控配置和汇总统计
 func (s *MonitorService) ListByAuth(ctx context.Context, isAuthenticated bool) ([]metric.PublicMonitorOverview, error) {
-	// 构建缓存键：根据认证状态使用不同的 key
-	cacheKey := "overview:public"
-	if isAuthenticated {
-		cacheKey = "overview:private"
-	}
-
-	// 尝试从缓存获取
-	if cachedResult, ok := s.overviewCache.Get(cacheKey); ok {
-		return cachedResult, nil
-	}
-
-	// 缓存未命中，查询数据库
 	// 获取符合权限的监控任务列表
 	monitors, err := s.FindByAuth(ctx, isAuthenticated)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(monitors) == 0 {
-		var emptyResult []metric.PublicMonitorOverview
-		// 缓存空结果
-		s.overviewCache.Set(cacheKey, emptyResult, 5*time.Minute)
-		return emptyResult, nil
 	}
 
 	// 构建监控概览列表
@@ -262,9 +227,6 @@ func (s *MonitorService) ListByAuth(ctx context.Context, isAuthenticated bool) (
 		items = append(items, item)
 	}
 
-	// 缓存结果
-	s.overviewCache.Set(cacheKey, items, 5*time.Minute)
-
 	return items, nil
 }
 
@@ -276,7 +238,7 @@ func (s *MonitorService) buildMonitorOverview(monitor models.MonitorTask, stats 
 		target = "******"
 	}
 
-	return metric.PublicMonitorOverview{
+	overview := metric.PublicMonitorOverview{
 		ID:               monitor.ID,
 		Name:             monitor.Name,
 		Type:             monitor.Type,
@@ -288,10 +250,17 @@ func (s *MonitorService) buildMonitorOverview(monitor models.MonitorTask, stats 
 		AgentCount:       stats.AgentCount,
 		Status:           stats.Status,
 		ResponseTime:     stats.ResponseTime,
+		ResponseTimeMin:  stats.ResponseTimeMin,
+		ResponseTimeMax:  stats.ResponseTimeMax,
 		CertExpiryTime:   stats.CertExpiryTime,
 		CertDaysLeft:     stats.CertDaysLeft,
 		LastCheckTime:    stats.LastCheckTime,
 	}
+
+	// 复制探针状态分布
+	overview.AgentStats = stats.AgentStats
+
+	return overview
 }
 
 // resolveTargetAgents 计算监控任务对应的目标探针范围
@@ -442,6 +411,43 @@ func (s *MonitorService) GetMonitorStatsByID(ctx context.Context, monitorID stri
 	return &overview, nil
 }
 
+// GetMonitorDetail 获取监控详情（整合stats和agents）
+func (s *MonitorService) GetMonitorDetail(ctx context.Context, monitorID string) (*metric.MonitorDetailResponse, error) {
+	// 查询监控任务
+	monitor, err := s.MonitorRepo.FindById(ctx, monitorID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 查询聚合统计
+	stats := s.metricService.GetMonitorStats(monitorID)
+
+	// 查询各探针数据
+	agents := s.metricService.GetMonitorAgentStats(monitorID)
+
+	// 根据 ShowTargetPublic 字段决定是否返回真实的 Target
+	target := monitor.Target
+	if !monitor.ShowTargetPublic {
+		target = "******"
+	}
+
+	// 构建响应
+	detail := &metric.MonitorDetailResponse{
+		ID:               monitor.ID,
+		Name:             monitor.Name,
+		Type:             monitor.Type,
+		Target:           target,
+		ShowTargetPublic: monitor.ShowTargetPublic,
+		Description:      monitor.Description,
+		Enabled:          monitor.Enabled,
+		Interval:         monitor.Interval,
+		Stats:            stats,
+		Agents:           agents,
+	}
+
+	return detail, nil
+}
+
 // GetMonitorHistory 获取监控任务的历史时序数据
 // 直接返回 VictoriaMetrics 的原始时序数据，包含所有探针的独立序列
 // 支持时间范围：15m, 30m, 1h, 3h, 6h, 12h, 1d, 3d, 7d
@@ -499,13 +505,6 @@ func (s *MonitorService) GetMonitorByAuth(ctx context.Context, id string, isAuth
 		return nil, fmt.Errorf("monitor is disabled")
 	}
 	return monitor, nil
-}
-
-// clearCache 清理监控任务相关的所有缓存
-func (s *MonitorService) clearCache(monitorID string) {
-	// 清理概览缓存
-	s.overviewCache.Delete("overview:public")
-	s.overviewCache.Delete("overview:private")
 }
 
 // GetLatestMonitorMetricsByType 获取指定类型的最新监控指标（用于告警检查）

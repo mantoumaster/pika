@@ -52,12 +52,6 @@ const EmptyState = ({message = '监控数据不存在'}: { message?: string }) =
 );
 
 const timeRangeOptions = [
-    {label: '15分钟', value: '15m'},
-    {label: '30分钟', value: '30m'},
-    {label: '1小时', value: '1h'},
-    {label: '3小时', value: '3h'},
-    {label: '6小时', value: '6h'},
-    {label: '12小时', value: '12h'},
     {label: '1天', value: '1d'},
     {label: '3天', value: '3d'},
     {label: '7天', value: '7d'},
@@ -317,7 +311,7 @@ const MonitorDetail = () => {
     const navigate = useNavigate();
     const {id} = useParams<{ id: string }>();
     const [selectedAgent, setSelectedAgent] = useState<string>('all');
-    const [timeRange, setTimeRange] = useState<string>('15m');
+    const [timeRange, setTimeRange] = useState<string>('1d');
 
     // 获取监控详情（聚合数据）
     const {data: monitorDetail, isLoading} = useQuery<PublicMonitor>({

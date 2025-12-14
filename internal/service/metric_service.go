@@ -582,9 +582,10 @@ func (s *MetricService) aggregateMonitorStats(latestMetrics *metric.LatestMonito
 	}
 
 	var totalResponseTime int64
+	var minResponseTime int64 = 9223372036854775807 // math.MaxInt64
+	var maxResponseTime int64
 	var lastCheckTime int64
-	hasUp := false
-	hasDown := false
+	var upCount, downCount, unknownCount int
 	hasCert := false
 	var minCertExpiryTime int64
 	var minCertDaysLeft int
@@ -592,14 +593,26 @@ func (s *MetricService) aggregateMonitorStats(latestMetrics *metric.LatestMonito
 	for _, stat := range latestMetrics.Agents {
 		totalResponseTime += stat.ResponseTime
 
+		// 计算响应时间的最小值和最大值
+		if stat.ResponseTime < minResponseTime {
+			minResponseTime = stat.ResponseTime
+		}
+		if stat.ResponseTime > maxResponseTime {
+			maxResponseTime = stat.ResponseTime
+		}
+
 		if stat.CheckedAt > lastCheckTime {
 			lastCheckTime = stat.CheckedAt
 		}
 
-		if stat.Status == "up" {
-			hasUp = true
-		} else if stat.Status == "down" {
-			hasDown = true
+		// 统计各状态的探针数量
+		switch stat.Status {
+		case "up":
+			upCount++
+		case "down":
+			downCount++
+		default:
+			unknownCount++
 		}
 
 		if stat.CertExpiryTime > 0 {
@@ -616,12 +629,19 @@ func (s *MetricService) aggregateMonitorStats(latestMetrics *metric.LatestMonito
 	if count > 0 {
 		result.ResponseTime = totalResponseTime / int64(count)
 	}
+	result.ResponseTimeMin = minResponseTime
+	result.ResponseTimeMax = maxResponseTime
 	result.LastCheckTime = lastCheckTime
 
+	// 填充探针状态分布
+	result.AgentStats.Up = upCount
+	result.AgentStats.Down = downCount
+	result.AgentStats.Unknown = unknownCount
+
 	// 聚合状态：只要有一个探针 up，整体就是 up
-	if hasUp {
+	if upCount > 0 {
 		result.Status = "up"
-	} else if hasDown {
+	} else if downCount > 0 {
 		result.Status = "down"
 	}
 
