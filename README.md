@@ -2,7 +2,7 @@
 
 <div align="center">
 
-一个基于 Go + PostgreSQL 的实时探针监控系统
+一个基于 Go + PostgreSQL + VictoriaMetrics 的实时探针监控系统
 
 [快速开始](#快速开始) • [截图](#截图) • [功能特性](#功能特性) • [加入群聊](#加入群聊) 
 
@@ -10,7 +10,7 @@
 
 ## 简介
 
-Pika 是一个轻量级的探针监控系统，支持实时数据采集、存储和查询。系统采用 WebSocket 进行探针与服务端的通信，使用 PostgreSQL 存储时序数据。除了基础监控功能外，还提供 Linux 应急响应和安全基线检查能力，帮助快速发现和分析系统安全风险。
+Pika 是一个轻量级的探针监控系统，支持实时数据采集、存储和查询。系统采用 WebSocket 进行探针与服务端的通信，使用 VictoriaMetrics 存储时序指标数据，使用 PostgreSQL 存储配置和审计数据。除了基础监控功能外，还提供 Linux 应急响应和安全基线检查能力，帮助快速发现和分析系统安全风险。
 
 ## 功能特性
 
@@ -101,6 +101,16 @@ wget -O config.yaml https://raw.githubusercontent.com/dushixiang/pika/main/confi
       Database: pika
   ```
 
+- **VictoriaMetrics 配置**：确保时序数据库连接信息正确
+  ```yaml
+  VictoriaMetrics:
+    Enabled: true
+    URL: "http://victoriametrics:8428"
+    RetentionDays: 7 # 数据保留时长
+    WriteTimeout: 60 # 写超时时间（秒）
+    QueryTimeout: 60 # 读超时时间（秒）
+  ```
+
 - **JWT 密钥**：必须修改为强随机字符串
   ```yaml
   App:
@@ -144,6 +154,11 @@ wget -O config.yaml https://raw.githubusercontent.com/dushixiang/pika/main/confi
 
 #### 3. 启动服务
 
+Docker Compose 会启动三个服务：
+- **postgresql**: PostgreSQL 数据库，用于存储配置和审计数据
+- **victoriametrics**: VictoriaMetrics 时序数据库，用于存储监控指标数据（保留 7 天）
+- **pika**: Pika 主服务
+
 ```bash
 # 启动所有服务
 docker-compose up -d
@@ -182,11 +197,16 @@ docker-compose down -v
 - 修改默认管理员密码或启用 OIDC/GitHub 认证
 - 使用 HTTPS 反向代理（如 Nginx）
 - 限制数据库端口仅允许内部访问（docker-compose.yml 中已配置为 `127.0.0.1:5432:5432`）
+- 限制 VictoriaMetrics 端口仅允许内部访问（docker-compose.yml 中已配置为 `127.0.0.1:8428:8428`）
 - 妥善保管 `config.yaml` 文件，避免泄露敏感信息
 
 #### 2. 数据持久化
 
-数据库数据默认存储在 `./data/postgresql` 目录，请定期备份：
+系统数据分别存储在以下目录：
+- **PostgreSQL 数据**：`./data/postgresql` - 存储配置和审计数据
+- **VictoriaMetrics 数据**：`./data/vmdata` - 存储时序指标数据（默认保留 7 天）
+
+建议定期备份 PostgreSQL 数据库：
 
 ```bash
 # 备份数据库
@@ -194,6 +214,15 @@ docker-compose exec postgresql pg_dump -U pika pika > backup.sql
 
 # 恢复数据库
 docker-compose exec -T postgresql psql -U pika pika < backup.sql
+```
+
+VictoriaMetrics 数据可以通过直接备份 `./data/vmdata` 目录来保存：
+
+```bash
+# 备份 VictoriaMetrics 数据
+tar -czf vmdata-backup-$(date +%Y%m%d).tar.gz ./data/vmdata
+
+# 恢复时停止服务，解压到 ./data/vmdata 目录即可
 ```
 
 #### 3. 反向代理配置（Nginx 示例）
@@ -242,6 +271,21 @@ docker-compose restart
 - 确认 `config.yaml` 文件已正确映射到容器中
 - 查看数据库日志：`docker-compose logs postgresql`
 - 查看应用日志：`docker-compose logs pika`
+
+#### VictoriaMetrics 连接失败
+
+- 确认 VictoriaMetrics 容器已启动
+- 检查 `config.yaml` 中的 VictoriaMetrics 配置是否正确：
+  - `Address` 应该为 `http://victoriametrics:8428`（Docker Compose 服务名）
+- 查看 VictoriaMetrics 日志：`docker-compose logs victoriametrics`
+- 测试 VictoriaMetrics 是否正常工作：
+  ```bash
+  # 从宿主机访问
+  curl http://localhost:8428/metrics
+
+  # 从容器内访问
+  docker-compose exec pika wget -O- http://victoriametrics:8428/metrics
+  ```
 
 #### 配置文件问题
 
