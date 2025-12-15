@@ -6,14 +6,14 @@ import {
     ArrowDown,
     ArrowUp,
     Calendar,
-    CheckCircle2,
     Cpu,
     Filter,
     HardDrive,
+    LinkIcon,
     Loader2,
     MemoryStick,
     Server,
-    XCircle
+    UnlinkIcon
 } from 'lucide-react';
 import {getPublicTags, listAgents} from '@/api/agent.ts';
 import type {Agent, LatestMetrics} from '@/types';
@@ -95,11 +95,6 @@ const ServerList = () => {
         refetchInterval: 30000,
     });
 
-    // 根据选中的标签过滤服务器
-    const filteredAgents = selectedTag
-        ? agents.filter(agent => agent.tags?.includes(selectedTag))
-        : agents;
-
     // 计算统计数据
     const stats = useMemo(() => {
         const total = agents.length;
@@ -173,13 +168,13 @@ const ServerList = () => {
                 <StatCard
                     title="在线设备"
                     value={stats.online}
-                    icon={CheckCircle2}
+                    icon={LinkIcon}
                     color="emerald"
                 />
                 <StatCard
                     title="离线设备"
                     value={stats.offline}
-                    icon={XCircle}
+                    icon={UnlinkIcon}
                     color="rose"
                 />
                 <NetworkStatCard
@@ -193,7 +188,8 @@ const ServerList = () => {
             {/* 标签过滤器 */}
             {allTags.length > 1 && (
                 <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
-                    <div className="text-[10px] sm:text-xs font-mono text-cyan-600 flex items-center gap-1.5 sm:gap-2 mr-1 sm:mr-2">
+                    <div
+                        className="text-[10px] sm:text-xs font-mono text-cyan-600 flex items-center gap-1.5 sm:gap-2 mr-1 sm:mr-2">
                         <Filter className="w-3 h-3"/>
                         <span className="hidden sm:inline">FILTERS:</span>
                     </div>
@@ -234,14 +230,15 @@ const ServerList = () => {
             ) : (
                 <>
                     {/* 桌面端表格布局 */}
-                    <div className="hidden md:block bg-[#0a0b10]/90 border border-cyan-900/50 rounded-md overflow-hidden shadow-2xl backdrop-blur-sm">
+                    <div
+                        className="hidden md:block bg-[#0a0b10]/90 border border-cyan-900/50 rounded-md overflow-hidden shadow-2xl backdrop-blur-sm">
                         <table className="w-full text-left border-collapse">
                             <thead>
                             <tr className="bg-black/40 text-[10px] font-mono uppercase tracking-widest text-cyan-600 border-b border-cyan-900/50">
                                 <th className="p-4 font-normal w-[300px]">System Identity</th>
                                 <th className="p-4 font-normal">Resource Telemetry</th>
                                 <th className="p-4 font-normal w-[200px]">Network I/O</th>
-                                <th className="p-4 font-normal w-[180px]">Meta / Status</th>
+                                <th className="p-4 font-normal w-[180px]">Meta / Tags</th>
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-cyan-900/30">
@@ -334,7 +331,7 @@ const ServerList = () => {
                                                     <span>OUT: {formatSpeed(upload)}</span>
                                                 </span>
                                             </div>
-                                            {server.trafficLimit > 0 ? (
+                                            {server.trafficLimit > 0 && (
                                                 <div className="w-32">
                                                     <div
                                                         className="flex justify-between text-[9px] text-cyan-700 mb-0.5">
@@ -346,8 +343,6 @@ const ServerList = () => {
                                                              style={{width: `${((server.trafficUsed || 0) / server.trafficLimit) * 100}%`}}></div>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="text-[10px] text-cyan-800 italic">-- NO METERING --</div>
                                             )}
                                         </td>
 

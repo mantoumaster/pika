@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {Activity, LogIn, ServerIcon, Settings, Menu, X} from 'lucide-react';
+import {Activity, LogIn, Menu, ServerIcon, Settings, X} from 'lucide-react';
 import {getCurrentUser} from '../api/auth';
 import {Link, useLocation} from "react-router-dom";
 
@@ -47,6 +47,18 @@ const PublicHeader = () => {
         activeTab = 'monitors';
     }
 
+    // let systemName = window.SystemConfig?.SystemNameZh;
+    let systemName = "Best Zhen";
+
+    let leftName = '';
+    let rightName = '';
+    
+    if (systemName) {
+        const mid = Math.floor(systemName.length / 2);
+        leftName = systemName.substring(0, mid);
+        rightName = systemName.substring(mid);
+    }
+
     return (
         <>
             <header className="border-b border-cyan-900/50 bg-[#05050a]/80 backdrop-blur-xl sticky top-0  z-40">
@@ -66,7 +78,7 @@ const PublicHeader = () => {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 uppercase italic">
-                                        {window.SystemConfig?.SystemNameEn}
+                                        {leftName}<span className="text-white">{rightName}</span>
                                     </h1>
                                     <p className="text-[10px] text-cyan-500/60 font-mono tracking-[0.3em] uppercase">
                                         {window.SystemConfig?.SystemNameZh}
@@ -150,7 +162,8 @@ const PublicHeader = () => {
 
             {/* Mobile Menu */}
             {mobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 top-20 bg-[#05050a]/95 backdrop-blur-xl z-30 animate-in slide-in-from-top">
+                <div
+                    className="md:hidden fixed inset-0 top-20 bg-[#05050a]/95 backdrop-blur-xl z-30 animate-in slide-in-from-top">
                     <div className="flex flex-col p-4 gap-4">
                         {/* Mobile Navigation */}
                         {[
@@ -164,9 +177,9 @@ const PublicHeader = () => {
                                 className={`
                                     flex items-center gap-3 p-4 rounded-lg border transition-all
                                     ${activeTab === tab.id
-                                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                        : 'bg-cyan-500/5 border-cyan-500/20 text-slate-400 hover:bg-cyan-500/10 hover:border-cyan-500/30'
-                                    }
+                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
+                                    : 'bg-cyan-500/5 border-cyan-500/20 text-slate-400 hover:bg-cyan-500/10 hover:border-cyan-500/30'
+                                }
                                 `}
                             >
                                 <tab.icon className="w-5 h-5"/>

@@ -44,11 +44,6 @@ export const getMonitorAgentStats = (id: string) => {
     return get<AgentMonitorStat[]>(`/monitors/${encodeURIComponent(id)}/agents`);
 };
 
-// 公开接口 - 获取监控详情（整合版，包含stats和agents）
-export const getMonitorDetail = (id: string) => {
-    return get<MonitorDetail>(`/monitors/${encodeURIComponent(id)}`);
-};
-
 // VictoriaMetrics 时序数据点
 export interface MetricDataPoint {
     timestamp: number;  // 毫秒时间戳
