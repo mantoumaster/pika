@@ -58,14 +58,10 @@ export const ResponseTimeChart = ({monitorId, monitorStats}: ResponseTimeChartPr
         // 过滤出响应时间指标的 series
         const responseTimeSeries = historyData.series?.filter(s => s.name === 'response_time');
 
-        // 根据选择的探针过滤（使用 agent_name，如果没有则fallback到 agent_id）
+        // 根据选择的探针过滤（使用 agent_id）
         const filteredSeries = selectedAgent === 'all'
             ? responseTimeSeries
-            : responseTimeSeries.filter(s => {
-                // 优先使用 agent_name，如果没有则使用 agent_id
-                const agentIdentifier = s.labels?.agent_name || s.labels?.agent_id;
-                return agentIdentifier === selectedAgent;
-            });
+            : responseTimeSeries.filter(s => s.labels?.agent_id === selectedAgent);
 
         if (filteredSeries.length === 0) return [];
 
@@ -73,9 +69,9 @@ export const ResponseTimeChart = ({monitorId, monitorStats}: ResponseTimeChartPr
         const grouped: Record<number, any> = {};
 
         filteredSeries.forEach(series => {
-            // 优先使用 agent_name，如果没有则使用 agent_id
-            const agentIdentifier = series.labels?.agent_name || series.labels?.agent_id || 'unknown';
-            const agentKey = `agent_${agentIdentifier}`;
+            // 使用 agent_id 作为标识符
+            const agentId = series.labels?.agent_id || 'unknown';
+            const agentKey = `agent_${agentId}`;
 
             series.data.forEach(point => {
                 if (!grouped[point.timestamp]) {
@@ -114,7 +110,7 @@ export const ResponseTimeChart = ({monitorId, monitorStats}: ResponseTimeChartPr
                         >
                             <option value="all">所有探针</option>
                             {availableAgents.map((agent) => (
-                                <option key={agent.id} value={agent.name}>
+                                <option key={agent.id} value={agent.id}>
                                     {agent.name}
                                 </option>
                             ))}
@@ -128,14 +124,10 @@ export const ResponseTimeChart = ({monitorId, monitorStats}: ResponseTimeChartPr
                     <AreaChart data={chartData}>
                         <defs>
                             {monitorStats
-                                .filter(stat => {
-                                    const agentIdentifier = stat.agentName || stat.agentId;
-                                    return selectedAgent === 'all' || agentIdentifier === selectedAgent;
-                                })
+                                .filter(stat => selectedAgent === 'all' || stat.agentId === selectedAgent)
                                 .map((stat) => {
                                     const originalIndex = monitorStats.findIndex(s => s.agentId === stat.agentId);
-                                    const agentIdentifier = stat.agentName || stat.agentId;
-                                    const agentKey = `agent_${agentIdentifier}`;
+                                    const agentKey = `agent_${stat.agentId}`;
                                     const color = AGENT_COLORS[originalIndex % AGENT_COLORS.length];
                                     return (
                                         <linearGradient key={agentKey} id={`gradient_${agentKey}`} x1="0" y1="0"
@@ -174,14 +166,10 @@ export const ResponseTimeChart = ({monitorId, monitorStats}: ResponseTimeChartPr
                             iconType="circle"
                         />
                         {monitorStats
-                            .filter(stat => {
-                                const agentIdentifier = stat.agentName || stat.agentId;
-                                return selectedAgent === 'all' || agentIdentifier === selectedAgent;
-                            })
+                            .filter(stat => selectedAgent === 'all' || stat.agentId === selectedAgent)
                             .map((stat) => {
                                 const originalIndex = monitorStats.findIndex(s => s.agentId === stat.agentId);
-                                const agentIdentifier = stat.agentName || stat.agentId;
-                                const agentKey = `agent_${agentIdentifier}`;
+                                const agentKey = `agent_${stat.agentId}`;
                                 const color = AGENT_COLORS[originalIndex % AGENT_COLORS.length];
                                 const agentLabel = stat.agentName || stat.agentId.substring(0, 8);
                                 return (
