@@ -1,100 +1,116 @@
-import {useEffect, useState} from 'react';
+import {useRef} from 'react';
 import {App, Form, Input, Modal, Select, Switch} from 'antd';
-import {createDDNSConfig, updateDDNSConfig} from '@/api/ddns';
+import {createDDNSConfig, getDDNSConfig, updateDDNSConfig} from '@/api/ddns';
 import {getDNSProviders} from '@/api/dnsProvider';
-import type {CreateDDNSConfigRequest, DDNSConfig, DNSProviderConfig, UpdateDDNSConfigRequest} from '@/types/ddns';
+import type {CreateDDNSConfigRequest, UpdateDDNSConfigRequest} from '@/types/ddns';
 import {getAgentPaging} from '@/api/agent';
-import type {Agent} from '@/types';
+import {ProForm, ProFormDependency, type ProFormInstance} from "@ant-design/pro-components";
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 interface DDNSModalProps {
     open: boolean;
     id?: string; // 如果有 id 则为编辑模式,否则为新建模式
-    config?: DDNSConfig; // 编辑模式时传入的配置数据
     onCancel: () => void;
     onSuccess: () => void;
 }
 
-const DDNSModal = ({open, id, config, onCancel, onSuccess}: DDNSModalProps) => {
+// 默认 IPv4 API 列表
+const defaultIPv4APIs = [
+    'https://myip.ipip.net',
+    'https://ddns.oray.com/checkip',
+    'https://ip.3322.net',
+    'https://4.ipw.cn',
+    'https://v4.yinghualuo.cn/bejson',
+];
+
+// 默认 IPv6 API 列表
+const defaultIPv6APIs = [
+    'https://speed.neu6.edu.cn/getIP.php',
+    'https://v6.ident.me',
+    'https://6.ipw.cn',
+    'https://v6.yinghualuo.cn/bejson',
+];
+
+const DDNSModal = ({open, id, onCancel, onSuccess}: DDNSModalProps) => {
     const {message: messageApi} = App.useApp();
-    const [form] = Form.useForm();
-    const [loading, setLoading] = useState(false);
-    const [agents, setAgents] = useState<Agent[]>([]);
-    const [providers, setProviders] = useState<DNSProviderConfig[]>([]);
+    const formRef = useRef<ProFormInstance>(null);
+    const queryClient = useQueryClient();
 
     const isEditMode = !!id;
 
-    // 默认 IPv4 API 列表
-    const defaultIPv4APIs = [
-        'https://myip.ipip.net',
-        'https://ddns.oray.com/checkip',
-        'https://ip.3322.net',
-        'https://4.ipw.cn',
-        'https://v4.yinghualuo.cn/bejson',
-    ];
-
-    // 默认 IPv6 API 列表
-    const defaultIPv6APIs = [
-        'https://speed.neu6.edu.cn/getIP.php',
-        'https://v6.ident.me',
-        'https://6.ipw.cn',
-        'https://v6.yinghualuo.cn/bejson',
-    ];
-
-    useEffect(() => {
-        if (open) {
-            loadProviders();
-            // 新建模式才需要加载探针列表
-            if (!isEditMode) {
-                loadAgents();
-            }
-        }
-    }, [open, isEditMode]);
-
-    useEffect(() => {
-        if (open && isEditMode && config) {
-            // 编辑模式:填充表单数据
-            form.setFieldsValue({
-                name: config.name,
-                provider: config.provider,
-                enableIpv4: config.enableIpv4,
-                enableIpv6: config.enableIpv6,
-                ipv4GetMethod: config.ipv4GetMethod,
-                ipv6GetMethod: config.ipv6GetMethod,
-                ipv4GetValue: config.ipv4GetValue,
-                ipv6GetValue: config.ipv6GetValue,
-                domainsIpv4: (config.domainsIpv4 || []).join('\n'),
-                domainsIpv6: (config.domainsIpv6 || []).join('\n'),
-            });
-        } else if (open && !isEditMode) {
-            // 新建模式:重置表单为默认值
-            form.resetFields();
-        }
-    }, [open, isEditMode, config, form]);
-
-    const loadAgents = async () => {
-        try {
+    // 查询探针列表（仅在新建模式下启用）
+    const {data: agentsData} = useQuery({
+        queryKey: ['agents', 'paging'],
+        queryFn: async () => {
             const data = await getAgentPaging(1, 1000);
-            setAgents(data.data.items || []);
-        } catch (error) {
-            messageApi.error('加载探针列表失败');
-        }
-    };
+            return data.data.items || [];
+        },
+        enabled: open && !isEditMode,
+    });
 
-    const loadProviders = async () => {
-        try {
+    // 查询 DNS 提供商列表
+    const {data: providersData} = useQuery({
+        queryKey: ['dns-providers'],
+        queryFn: async () => {
             const response = await getDNSProviders();
             // 只显示已启用的 provider
-            const enabledProviders = (response.data || []).filter(p => p.enabled);
-            setProviders(enabledProviders);
-        } catch (error) {
-            messageApi.error('加载 DNS Provider 列表失败');
+            return (response.data || []).filter(p => p.enabled);
+        },
+        enabled: open,
+    });
+
+    const agents = agentsData || [];
+    const providers = providersData || [];
+
+    const get = async () => {
+        if (id) {
+            const resp = await getDDNSConfig(id);
+            let config = resp.data;
+            config.domainsIpv4 = (config.domainsIpv4 as string[])?.join('\n');
+            config.domainsIpv6 = (config.domainsIpv6 as string[])?.join('\n');
+            return config;
         }
+        return {
+            enableIpv4: true,
+            enableIpv6: false,
+            ipv4GetMethod: 'api',
+            ipv6GetMethod: 'api',
+        };
     };
+
+    // 创建 DDNS 配置的 mutation
+    const createMutation = useMutation({
+        mutationFn: (data: CreateDDNSConfigRequest) => createDDNSConfig(data),
+        onSuccess: () => {
+            messageApi.success('创建成功');
+            queryClient.invalidateQueries({queryKey: ['ddns-configs']});
+            formRef?.current.resetFields();
+            onSuccess();
+        },
+        onError: (error: any) => {
+            messageApi.error(error.message || '创建失败');
+        }
+    });
+
+    // 更新 DDNS 配置的 mutation
+    const updateMutation = useMutation({
+        mutationFn: ({id, data}: { id: string; data: UpdateDDNSConfigRequest }) =>
+            updateDDNSConfig(id, data),
+        onSuccess: () => {
+            messageApi.success('更新成功');
+            queryClient.invalidateQueries({queryKey: ['ddns-configs']});
+            queryClient.invalidateQueries({queryKey: ['ddns-config', id]});
+            formRef?.current.resetFields();
+            onSuccess();
+        },
+        onError: (error: any) => {
+            messageApi.error(error.message || '更新失败');
+        }
+    });
 
     const handleOk = async () => {
         try {
-            const values = await form.validateFields();
-
+            const values = await formRef?.current.validateFields();
             // 处理 IPv4 域名列表
             const domainsIpv4Text = values.domainsIpv4 || '';
             const domainsIpv4 = domainsIpv4Text
@@ -115,37 +131,24 @@ const DDNSModal = ({open, id, config, onCancel, onSuccess}: DDNSModalProps) => {
                 domainsIpv6,
             };
 
-            setLoading(true);
-
             if (isEditMode && id) {
                 // 编辑模式
-                await updateDDNSConfig(id, data as UpdateDDNSConfigRequest);
-                messageApi.success('更新成功');
+                updateMutation.mutate({id, data: data as UpdateDDNSConfigRequest});
             } else {
                 // 新建模式
-                await createDDNSConfig(data as CreateDDNSConfigRequest);
-                messageApi.success('创建成功');
+                createMutation.mutate(data as CreateDDNSConfigRequest);
             }
-
-            form.resetFields();
-            onSuccess();
         } catch (error: any) {
             if (error.errorFields) {
                 return;
             }
-            messageApi.error(error.message || (isEditMode ? '更新失败' : '创建失败'));
-        } finally {
-            setLoading(false);
         }
     };
 
     const handleCancel = () => {
-        form.resetFields();
+        formRef?.current.resetFields();
         onCancel();
     };
-
-    const enableIpv4 = Form.useWatch('enableIpv4', form);
-    const enableIpv6 = Form.useWatch('enableIpv6', form);
 
     const providerNames: Record<string, string> = {
         aliyun: '阿里云',
@@ -160,20 +163,11 @@ const DDNSModal = ({open, id, config, onCancel, onSuccess}: DDNSModalProps) => {
             open={open}
             onOk={handleOk}
             onCancel={handleCancel}
-            confirmLoading={loading}
+            confirmLoading={createMutation.isPending || updateMutation.isPending}
             width={700}
             destroyOnHidden
         >
-            <Form
-                form={form}
-                layout="vertical"
-                initialValues={{
-                    enableIpv4: true,
-                    enableIpv6: false,
-                    ipv4GetMethod: 'api',
-                    ipv6GetMethod: 'api',
-                }}
-            >
+            <ProForm formRef={formRef} request={get} submitter={false}>
                 <Form.Item label="配置名称" name="name" rules={[{required: true, message: '请输入配置名称'}]}>
                     <Input placeholder="例如:生产环境 DDNS"/>
                 </Form.Item>
@@ -216,58 +210,55 @@ const DDNSModal = ({open, id, config, onCancel, onSuccess}: DDNSModalProps) => {
                             </Form.Item>
                         </div>
 
-                        {enableIpv4 && (
-                            <>
-                                <Form.Item
-                                    label="域名列表"
-                                    name="domainsIpv4"
-                                    rules={[
-                                        {required: true, message: '请输入至少一个 IPv4 域名'},
-                                        {
-                                            validator: (_, value) => {
-                                                if (!value || value.trim() === '') {
-                                                    return Promise.reject('请输入至少一个 IPv4 域名');
-                                                }
-                                                return Promise.resolve();
-                                            }
+                        <ProFormDependency name={['enableIpv4']}>
+                            {({enableIpv4}) => {
+                                if (!enableIpv4) {
+                                    return null;
+                                }
+                                return <>
+                                    <Form.Item
+                                        label="域名列表"
+                                        name="domainsIpv4"
+                                        rules={[
+                                            {required: true, message: '请输入至少一个 IPv4 域名'},
+                                        ]}
+                                        extra="每行输入一个域名,用于 IPv4(A 记录)"
+                                    >
+                                        <Input.TextArea
+                                            rows={3}
+                                            placeholder="每行输入一个域名,例如:&#10;ddns.example.com&#10;www.example.com"
+                                        />
+                                    </Form.Item>
+
+                                    <Form.Item
+                                        label="获取方式"
+                                        name="ipv4GetMethod"
+                                        rules={[{required: true, message: '请选择 IPv4 获取方式'}]}
+                                    >
+                                        <Select>
+                                            <Select.Option value="api">API 获取</Select.Option>
+                                            <Select.Option value="interface">网络接口</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+
+                                    <Form.Item
+                                        label="配置值"
+                                        name="ipv4GetValue"
+                                        extra="留空使用默认 API,或指定网络接口名称(如: eth0)"
+                                        tooltip={
+                                            <div className="space-y-1">
+                                                <div className="font-medium">默认 IPv4 API 列表:</div>
+                                                {defaultIPv4APIs.map((api, index) => (
+                                                    <div key={index} className="text-xs">{api}</div>
+                                                ))}
+                                            </div>
                                         }
-                                    ]}
-                                    extra="每行输入一个域名,用于 IPv4(A 记录)"
-                                >
-                                    <Input.TextArea
-                                        rows={3}
-                                        placeholder="每行输入一个域名,例如:&#10;ddns.example.com&#10;www.example.com"
-                                    />
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="获取方式"
-                                    name="ipv4GetMethod"
-                                    rules={[{required: true, message: '请选择 IPv4 获取方式'}]}
-                                >
-                                    <Select>
-                                        <Select.Option value="api">API 获取</Select.Option>
-                                        <Select.Option value="interface">网络接口</Select.Option>
-                                    </Select>
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="配置值"
-                                    name="ipv4GetValue"
-                                    extra="留空使用默认 API,或指定网络接口名称(如: eth0)"
-                                    tooltip={
-                                        <div className="space-y-1">
-                                            <div className="font-medium">默认 IPv4 API 列表:</div>
-                                            {defaultIPv4APIs.map((api, index) => (
-                                                <div key={index} className="text-xs">{api}</div>
-                                            ))}
-                                        </div>
-                                    }
-                                >
-                                    <Input placeholder="留空使用默认 API / 接口名: eth0"/>
-                                </Form.Item>
-                            </>
-                        )}
+                                    >
+                                        <Input placeholder="留空使用默认 API / 接口名: eth0"/>
+                                    </Form.Item>
+                                </>
+                            }}
+                        </ProFormDependency>
                     </div>
 
                     {/* IPv6 配置卡片 */}
@@ -279,61 +270,58 @@ const DDNSModal = ({open, id, config, onCancel, onSuccess}: DDNSModalProps) => {
                             </Form.Item>
                         </div>
 
-                        {enableIpv6 && (
-                            <>
-                                <Form.Item
-                                    label="域名列表"
-                                    name="domainsIpv6"
-                                    rules={[
-                                        {required: true, message: '请输入至少一个 IPv6 域名'},
-                                        {
-                                            validator: (_, value) => {
-                                                if (!value || value.trim() === '') {
-                                                    return Promise.reject('请输入至少一个 IPv6 域名');
-                                                }
-                                                return Promise.resolve();
-                                            }
+                        <ProFormDependency name={['enableIpv6']}>
+                            {({enableIpv6}) => {
+                                if (!enableIpv6) {
+                                    return null;
+                                }
+                                return <>
+                                    <Form.Item
+                                        label="域名列表"
+                                        name="domainsIpv6"
+                                        rules={[
+                                            {required: true, message: '请输入至少一个 IPv6 域名'},
+                                        ]}
+                                        extra="每行输入一个域名,用于 IPv6(AAAA 记录)"
+                                    >
+                                        <Input.TextArea
+                                            rows={3}
+                                            placeholder="每行输入一个域名,例如:&#10;ddns-v6.example.com&#10;www-v6.example.com"
+                                        />
+                                    </Form.Item>
+
+                                    <Form.Item
+                                        label="获取方式"
+                                        name="ipv6GetMethod"
+                                        rules={[{required: true, message: '请选择 IPv6 获取方式'}]}
+                                    >
+                                        <Select>
+                                            <Select.Option value="api">API 获取</Select.Option>
+                                            <Select.Option value="interface">网络接口</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+
+                                    <Form.Item
+                                        label="配置值"
+                                        name="ipv6GetValue"
+                                        extra="留空使用默认 API,或指定网络接口名称(如: eth0)"
+                                        tooltip={
+                                            <div className="space-y-1">
+                                                <div className="font-medium">默认 IPv6 API 列表:</div>
+                                                {defaultIPv6APIs.map((api, index) => (
+                                                    <div key={index} className="text-xs">{api}</div>
+                                                ))}
+                                            </div>
                                         }
-                                    ]}
-                                    extra="每行输入一个域名,用于 IPv6(AAAA 记录)"
-                                >
-                                    <Input.TextArea
-                                        rows={3}
-                                        placeholder="每行输入一个域名,例如:&#10;ddns-v6.example.com&#10;www-v6.example.com"
-                                    />
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="获取方式"
-                                    name="ipv6GetMethod"
-                                    rules={[{required: true, message: '请选择 IPv6 获取方式'}]}
-                                >
-                                    <Select>
-                                        <Select.Option value="api">API 获取</Select.Option>
-                                        <Select.Option value="interface">网络接口</Select.Option>
-                                    </Select>
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="配置值"
-                                    name="ipv6GetValue"
-                                    extra="留空使用默认 API,或指定网络接口名称(如: eth0)"
-                                    tooltip={
-                                        <div className="space-y-1">
-                                            <div className="font-medium">默认 IPv6 API 列表:</div>
-                                            {defaultIPv6APIs.map((api, index) => (
-                                                <div key={index} className="text-xs">{api}</div>
-                                            ))}
-                                        </div>
-                                    }
-                                >
-                                    <Input placeholder="留空使用默认 API / 接口名: eth0"/>
-                                </Form.Item>
-                            </>
-                        )}
+                                    >
+                                        <Input placeholder="留空使用默认 API / 接口名: eth0"/>
+                                    </Form.Item>
+                                </>
+                            }}
+                        </ProFormDependency>
                     </div>
                 </div>
-            </Form>
+            </ProForm>
         </Modal>
     );
 };

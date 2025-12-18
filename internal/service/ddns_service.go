@@ -329,7 +329,13 @@ func (s *DDNSService) CreateConfig(ctx context.Context, config *models.DDNSConfi
 
 // UpdateConfig 更新 DDNS 配置
 func (s *DDNSService) UpdateConfig(ctx context.Context, config *models.DDNSConfig) error {
-	return s.ConfigRepo.UpdateById(ctx, config)
+	return s.ConfigRepo.Save(ctx, config)
+}
+
+func (s *DDNSService) UpdateEnabled(ctx context.Context, id string, enabled bool) error {
+	return s.ConfigRepo.UpdateColumnsById(ctx, id, map[string]interface{}{
+		"enabled": enabled,
+	})
 }
 
 // GetConfig 获取 DDNS 配置

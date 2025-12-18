@@ -179,26 +179,14 @@ func (h *DDNSHandler) Update(c echo.Context) error {
 	}
 
 	// 更新字段
-	if req.Name != "" {
-		existing.Name = req.Name
-	}
-	if req.Provider != "" {
-		existing.Provider = req.Provider
-	}
-	if req.DomainsIPv4 != nil {
-		existing.DomainsIPv4 = req.DomainsIPv4
-	}
-	if req.DomainsIPv6 != nil {
-		existing.DomainsIPv6 = req.DomainsIPv6
-	}
+	existing.Name = req.Name
+	existing.Provider = req.Provider
+	existing.DomainsIPv4 = req.DomainsIPv4
+	existing.DomainsIPv6 = req.DomainsIPv6
 	existing.EnableIPv4 = req.EnableIPv4
 	existing.EnableIPv6 = req.EnableIPv6
-	if req.IPv4GetMethod != "" {
-		existing.IPv4GetMethod = req.IPv4GetMethod
-	}
-	if req.IPv6GetMethod != "" {
-		existing.IPv6GetMethod = req.IPv6GetMethod
-	}
+	existing.IPv4GetMethod = req.IPv4GetMethod
+	existing.IPv6GetMethod = req.IPv6GetMethod
 	existing.IPv4GetValue = req.IPv4GetValue
 	existing.IPv6GetValue = req.IPv6GetValue
 	existing.UpdatedAt = time.Now().UnixMilli()
@@ -233,16 +221,7 @@ func (h *DDNSHandler) Enable(c echo.Context) error {
 	id := c.Param("id")
 	ctx := c.Request().Context()
 
-	config, err := h.ddnsService.GetConfig(ctx, id)
-	if err != nil {
-		h.logger.Error("failed to get ddns config", zap.Error(err))
-		return err
-	}
-
-	config.Enabled = true
-	config.UpdatedAt = time.Now().UnixMilli()
-
-	if err := h.ddnsService.UpdateConfig(ctx, config); err != nil {
+	if err := h.ddnsService.UpdateEnabled(ctx, id, true); err != nil {
 		h.logger.Error("failed to enable ddns config", zap.Error(err))
 		return err
 	}
@@ -257,16 +236,7 @@ func (h *DDNSHandler) Disable(c echo.Context) error {
 	id := c.Param("id")
 	ctx := c.Request().Context()
 
-	config, err := h.ddnsService.GetConfig(ctx, id)
-	if err != nil {
-		h.logger.Error("failed to get ddns config", zap.Error(err))
-		return err
-	}
-
-	config.Enabled = false
-	config.UpdatedAt = time.Now().UnixMilli()
-
-	if err := h.ddnsService.UpdateConfig(ctx, config); err != nil {
+	if err := h.ddnsService.UpdateEnabled(ctx, id, false); err != nil {
 		h.logger.Error("failed to disable ddns config", zap.Error(err))
 		return err
 	}

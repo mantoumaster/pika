@@ -11,8 +11,8 @@ export interface DDNSConfig {
     name: string;
     enabled: boolean;
     provider: 'aliyun' | 'tencentcloud' | 'cloudflare' | 'huaweicloud';
-    domainsIpv4: string[];  // IPv4 域名列表
-    domainsIpv6: string[];  // IPv6 域名列表
+    domainsIpv4: string[] | string;  // IPv4 域名列表
+    domainsIpv6: string[] | string;  // IPv6 域名列表
     enableIpv4: boolean;
     enableIpv6: boolean;
     ipv4GetMethod: 'api' | 'interface';
