@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { App, Button, Card, Collapse, Form, Input, Select, Space, Spin, Switch } from 'antd';
+import { App, Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Switch } from 'antd';
 import { TestTube } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,6 +18,7 @@ const NotificationChannels = () => {
     // 监听各个通知渠道的启用状态
     const dingtalkEnabled = Form.useWatch('dingtalkEnabled', form);
     const wecomEnabled = Form.useWatch('wecomEnabled', form);
+    const wecomAppEnabled = Form.useWatch('wecomAppEnabled', form);
     const feishuEnabled = Form.useWatch('feishuEnabled', form);
     const telegramEnabled = Form.useWatch('telegramEnabled', form);
     const emailEnabled = Form.useWatch('emailEnabled', form);
@@ -65,6 +66,13 @@ const NotificationChannels = () => {
                 } else if (channel.type === 'wecom') {
                     formValues.wecomEnabled = channel.enabled;
                     formValues.wecomSecretKey = channel.config?.secretKey || '';
+                } else if (channel.type === 'wecomApp') {
+                    formValues.wecomAppEnabled = channel.enabled;
+                    formValues.wecomAppOrigin = channel.config?.origin || 'https://qyapi.weixin.qq.com';
+                    formValues.wecomAppCorpId = channel.config?.corpId || '';
+                    formValues.wecomAppCorpSecret = channel.config?.corpSecret || '';
+                    formValues.wecomAppAgentId = channel.config?.agentId;
+                    formValues.wecomAppToUser = channel.config?.toUser || '@all';
                 } else if (channel.type === 'feishu') {
                     formValues.feishuEnabled = channel.enabled;
                     formValues.feishuSecretKey = channel.config?.secretKey || '';
@@ -126,6 +134,21 @@ const NotificationChannels = () => {
                     enabled: values.wecomEnabled || false,
                     config: {
                         secretKey: values.wecomSecretKey || '',
+                    },
+                });
+            }
+
+            // 企业微信应用
+            if (values.wecomAppEnabled || values.wecomAppOrigin) {
+                newChannels.push({
+                    type: 'wecomApp',
+                    enabled: values.wecomAppEnabled || false,
+                    config: {
+                        origin: values.wecomAppOrigin || '',
+                        corpId: values.wecomAppCorpId || '',
+                        corpSecret: values.wecomAppCorpSecret || '',
+                        agentId: values.wecomAppAgentId,
+                        toUser: values.wecomAppToUser || '',
                     },
                 });
             }
@@ -328,6 +351,92 @@ const NotificationChannels = () => {
                                     >
                                         <Input placeholder="输入 Webhook Key" />
                                     </Form.Item>
+                                ) : null
+                            }
+                        </Form.Item>
+                    </Card>
+
+                    {/* 企业微信应用通知 */}
+                    <Card
+                        title={
+                            <div className={'flex items-center gap-2'}>
+                                <div>企业微信应用通知</div>
+                                <div className={'text-xs font-normal'}>
+                                    了解更多：<a href="https://developer.work.weixin.qq.com/document/path/90236"
+                                        target="_blank"
+                                        rel="noopener noreferrer">https://developer.work.weixin.qq.com/document/path/90236</a>
+                                </div>
+                            </div>
+                        }
+                        type="inner"
+                        className="mb-4"
+                        extra={
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<TestTube size={14} />}
+                                onClick={() => handleTest('wecomApp')}
+                                loading={testMutation.isPending}
+                                disabled={!wecomAppEnabled}
+                            >
+                                测试
+                            </Button>
+                        }
+                    >
+                        <Form.Item label="启用企业微信应用通知" name="wecomAppEnabled" valuePropName="checked">
+                            <Switch />
+                        </Form.Item>
+
+                        <Form.Item
+                            noStyle
+                            shouldUpdate={(prevValues, currentValues) => prevValues.wecomAppEnabled !== currentValues.wecomAppEnabled}
+                        >
+                            {({ getFieldValue }) =>
+                                getFieldValue('wecomAppEnabled') ? (
+                                    <>
+                                        <Form.Item
+                                            label="origin"
+                                            name="wecomAppOrigin"
+                                            initialValue="https://qyapi.weixin.qq.com"
+                                            rules={[{ required: true, message: '请输入企业微信应用origin' }]}
+                                            tooltip="企业微信应用origin， Pika部署在可信IP的服务器下保持默认即可"
+                                        >
+                                            <Input placeholder="https://qyapi.weixin.qq.com" />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="corpid"
+                                            name="wecomAppCorpId"
+                                            rules={[{ required: true, message: '请输入企业微信的corpid' }]}
+                                            tooltip="企业微信的corpid"
+                                        >
+                                            <Input placeholder="输入您的企业的corpid" />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="corpsecret"
+                                            name="wecomAppCorpSecret"
+                                            rules={[{ required: true, message: '请输入企业微信应用的corpsecret' }]}
+                                            tooltip="企业微信应用的corpsecret"
+                                        >
+                                            <Input.Password placeholder="输入您的企业应用的corpsecret" />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="agentid"
+                                            name="wecomAppAgentId"
+                                            rules={[{ required: true, message: '请输入企业微信应用的agentid' }]}
+                                            tooltip="企业微信应用的agentid"
+                                        >
+                                            <InputNumber style={{ width: '100%' }} placeholder="输入您的企业应用的agentid" />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="touser"
+                                            name="wecomAppToUser"
+                                            initialValue="@all"
+                                            rules={[{ required: true, message: '请输入接收消息的用户' }]}
+                                            tooltip="接收告警消息的用户"
+                                        >
+                                            <Input placeholder="输入接收告警消息的用户，全部可填@all" />
+                                        </Form.Item>
+                                    </>
                                 ) : null
                             }
                         </Form.Item>

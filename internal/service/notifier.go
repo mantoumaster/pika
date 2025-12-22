@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/dushixiang/pika/internal/models"
 	"github.com/dushixiang/pika/internal/utils"
+	"github.com/go-orz/cache"
 	"github.com/valyala/fasttemplate"
 	"go.uber.org/zap"
 	"gopkg.in/gomail.v2"
@@ -275,6 +277,85 @@ func (n *Notifier) sendWeCom(ctx context.Context, webhook, message string) error
 	if weComResult.Errcode != 0 {
 		return fmt.Errorf("%s", weComResult.Errmsg)
 	}
+	return nil
+}
+
+var wecomAppAccessTokenCache = cache.New[string, string](time.Minute)
+func (n *Notifier) getWecomAppToken(ctx context.Context, origin, corpId, corpSecret string) (string, error) {
+	key := fmt.Sprintf("%s#%s", corpId, corpSecret)
+	if token, found := wecomAppAccessTokenCache.Get(key); found {
+		return token, nil
+	}
+
+	accessTokenURL := fmt.Sprintf("%s/cgi-bin/gettoken?corpid=%s&corpsecret=%s", origin, corpId, corpSecret)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, accessTokenURL, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		ErrCode     int    `json:"errcode"`
+		ErrMsg      string `json:"errmsg"`
+		ExpiresIn   int64  `json:"expires_in"` //Second
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return "", err
+	}
+
+	if tokenResp.ErrCode != 0 {
+		return "", errors.New(tokenResp.ErrMsg)
+	}
+
+	// 提前两分钟过期
+	token := tokenResp.AccessToken
+	expires := time.Duration(tokenResp.ExpiresIn)*time.Second - 2*time.Minute
+	wecomAppAccessTokenCache.Set(key, token, expires)
+	return token, nil
+
+}
+
+// sendWeComApp 发送企业应用微信通知
+func (n *Notifier) sendWeComApp(ctx context.Context, origin, corpId, corpSecret string, agentId int, toUser string, message string) error {
+	token, err := n.getWecomAppToken(ctx, origin, corpId, corpSecret)
+	if err != nil {
+		return fmt.Errorf("获取企业微信应用ACCESS_TOKEN失败：%s", err)
+	}
+
+	webhook := fmt.Sprintf("%s/cgi-bin/message/send?access_token=%s", origin, token)
+
+	body := map[string]interface{}{
+		"touser":  toUser,
+		"msgtype": "text",
+		"agentid": agentId,
+		"text": map[string]string{
+			"content": message,
+		},
+		"safe": 0,
+	}
+
+	result, err := n.sendJSONRequest(ctx, webhook, body)
+	if err != nil {
+		return err
+	}
+
+	var sendRespBody struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+
+	if err := json.Unmarshal(result, &sendRespBody); err != nil {
+		return err
+	}
+
+	if sendRespBody.ErrCode != 0 {
+		return fmt.Errorf("%s", sendRespBody.ErrMsg)
+	}
+
 	return nil
 }
 
@@ -651,6 +732,36 @@ func (n *Notifier) sendWeComByConfig(ctx context.Context, config map[string]inte
 	return n.sendWeCom(ctx, webhook, message)
 }
 
+// sendWeComAppByConfig 根据配置发送企业微信应用通知
+func (n *Notifier) sendWeComAppByConfig(ctx context.Context, config map[string]interface{}, message string) error {
+	origin := "https://qyapi.weixin.qq.com"
+	if v, ok := config["origin"].(string); ok && v != "" {
+		origin = v
+	}
+
+	toUser := "@all"
+	if v, ok := config["toUser"].(string); ok && v != "" {
+		toUser = v
+	}
+
+	corpId, ok := config["corpId"].(string)
+	if !ok || corpId == "" {
+		return fmt.Errorf("企业微信应用配置缺少 corpid")
+	}
+
+	corpSecret, _ := config["corpSecret"].(string)
+	if !ok || corpSecret == "" {
+		return fmt.Errorf("企业微信应用配置缺少 corpsecret")
+	}
+
+	agentIdf, ok := config["agentId"].(float64)
+	if !ok || agentIdf <= 0 {
+		return fmt.Errorf("企业微信应用配置缺少 agentid")
+	}
+
+	return n.sendWeComApp(ctx, origin, corpId, corpSecret, int(agentIdf), toUser, message)
+}
+
 // sendFeishuByConfig 根据配置发送飞书通知
 func (n *Notifier) sendFeishuByConfig(ctx context.Context, config map[string]interface{}, message string) error {
 	secretKey, ok := config["secretKey"].(string)
@@ -748,6 +859,8 @@ func (n *Notifier) SendNotificationByConfig(ctx context.Context, channelConfig *
 		return n.sendDingTalkByConfig(ctx, channelConfig.Config, message)
 	case "wecom":
 		return n.sendWeComByConfig(ctx, channelConfig.Config, message)
+	case "wecomApp":
+		return n.sendWeComAppByConfig(ctx, channelConfig.Config, message)
 	case "feishu":
 		return n.sendFeishuByConfig(ctx, channelConfig.Config, message)
 	case "telegram":
@@ -790,6 +903,11 @@ func (n *Notifier) SendDingTalkByConfig(ctx context.Context, config map[string]i
 // SendWeComByConfig 导出方法供外部调用
 func (n *Notifier) SendWeComByConfig(ctx context.Context, config map[string]interface{}, message string) error {
 	return n.sendWeComByConfig(ctx, config, message)
+}
+
+// SendWeComAppByConfig 导出方法供外部调用
+func (n *Notifier) SendWeComAppByConfig(ctx context.Context, config map[string]interface{}, message string) error {
+	return n.sendWeComAppByConfig(ctx, config, message)
 }
 
 // SendFeishuByConfig 导出方法供外部调用
@@ -835,6 +953,8 @@ func (n *Notifier) SendTestNotification(ctx context.Context, channelType string,
 		return n.sendDingTalkByConfig(ctx, config, message)
 	case "wecom":
 		return n.sendWeComByConfig(ctx, config, message)
+	case "wecomApp":
+		return n.sendWeComAppByConfig(ctx, config, message)
 	case "feishu":
 		return n.sendFeishuByConfig(ctx, config, message)
 	case "telegram":
