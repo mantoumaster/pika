@@ -288,16 +288,15 @@ func (h *AgentHandler) sendTamperConfig(conn *websocket.Conn, agentID string) er
 
 // Paging 探针分页查询
 func (h *AgentHandler) Paging(c echo.Context) error {
-	hostname := c.QueryParam("hostname")
-	ip := c.QueryParam("ip")
 	status := c.QueryParam("status")
 
 	pr := orz.GetPageRequest(c, "name")
 
 	builder := orz.NewPageBuilder(h.agentService.AgentRepo.Repository).
 		PageRequest(pr).
-		Contains("hostname", hostname).
-		Contains("ip", ip)
+		Contains("name", c.QueryParam("name")).
+		Contains("hostname", c.QueryParam("hostname")).
+		Contains("ip", c.QueryParam("ip"))
 
 	// 处理状态筛选
 	if status == "online" {
