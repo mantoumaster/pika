@@ -2,16 +2,8 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
 # Agent 版本号基于 pkg/agent/ 目录的最后修改提交生成
-# 格式：agent-{最近修改 pkg/agent 的提交短hash}-{提交数量}
-AGENT_VERSION ?= $(shell \
-	LAST_COMMIT=$$(git log -1 --format=%h -- pkg/agent 2>/dev/null || echo "dev"); \
-	COMMIT_COUNT=$$(git rev-list --count HEAD -- pkg/agent 2>/dev/null || echo "0"); \
-	if [ "$$LAST_COMMIT" = "dev" ]; then \
-		echo "dev"; \
-	else \
-		echo "$$LAST_COMMIT-$$COMMIT_COUNT"; \
-	fi \
-)
+# 格式：{最近修改 pkg/agent 的提交短hash}
+AGENT_VERSION ?= $(shell git log -1 --format=%h -- pkg/agent 2>/dev/null || echo "dev")
 
 GIT_REVISION=$(shell git rev-parse HEAD)
 GO_VERSION=$(shell go version)
