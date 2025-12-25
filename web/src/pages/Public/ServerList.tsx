@@ -429,7 +429,11 @@ const ServerList = () => {
                                                     ))}
                                                 </div>
                                                 <div
-                                                    className={`text-xs font-mono flex items-center gap-1 ${server.expireTime && server.expireTime > 0 ? 'text-cyan-600 dark:text-cyan-500' : 'text-emerald-600 dark:text-emerald-400/80'}`}>
+                                                    className={cn(
+                                                        `text-xs font-mono flex items-center gap-1 text-gray-600 dark:text-cyan-500`,
+                                                        // 剩余时间小于 30 天时显示为红色
+                                                        server.expireTime && server.expireTime > 0 && server.expireTime - Date.now() < 30 * 24 * 60 * 60 * 1000 ? 'text-red-600 dark:text-red-400' : ''
+                                                    )}>
 
                                                     {server.expireTime > 0 &&
                                                         <div className={'flex items-center gap-1'}>
