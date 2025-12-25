@@ -195,8 +195,8 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
                                 <span className="text-gray-600 dark:text-cyan-500">监听</span>
                             </span>
                                 <span className="flex items-center gap-1">
-                                <Network className="w-3 h-3 text-amber-600 dark:text-amber-400"/>
-                                <span className="text-amber-600 dark:text-amber-400">{netConn.closeWait || 0}</span>
+                                <Network className="w-3 h-3 text-rose-600 dark:text-rose-400"/>
+                                <span className="text-rose-600 dark:text-rose-400">{netConn.closeWait || 0}</span>
                                 <span className="text-gray-600 dark:text-cyan-500">等待关闭</span>
                             </span>
                             </div>
