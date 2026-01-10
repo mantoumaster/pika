@@ -1,8 +1,8 @@
 import React, {useRef} from 'react';
 import {App, Button, Tag, Tooltip} from 'antd';
 import {Terminal} from 'lucide-react';
-import type {ActionType, ProColumns} from '@ant-design/pro-table';
-import ProTable from '@ant-design/pro-table';
+import type {ActionType, ProColumns} from '@ant-design/pro-components';
+import {ProTable} from '@ant-design/pro-components';
 import {useMutation} from '@tanstack/react-query';
 import type {SSHLoginEvent} from '@/types';
 import {deleteSSHLoginEvents, getSSHLoginEvents} from '@/api/agent';

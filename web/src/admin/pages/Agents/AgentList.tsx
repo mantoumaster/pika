@@ -177,7 +177,7 @@ const AgentList = () => {
                 <>
                     {record.tags && record.tags?.length > 0 ? (
                         record.tags?.map((tag, index) => (
-                            <Tag key={index} color="blue" bordered={false} style={{marginBottom: 4}}>
+                            <Tag key={index} color="blue" variant={'filled'} style={{marginBottom: 4}}>
                                 {tag}
                             </Tag>
                         ))
@@ -195,11 +195,11 @@ const AgentList = () => {
             render: (_, record) => {
                 const trafficStats = record.trafficStats;
                 if (!trafficStats || !trafficStats.enabled) {
-                    return <Tag bordered={false}>未启用</Tag>;
+                    return <Tag variant={'filled'}>未启用</Tag>;
                 }
                 return (
                     <div className="flex flex-col gap-1">
-                        <Tag color="green" bordered={false}>已启用</Tag>
+                        <Tag color="green" variant={'filled'}>已启用</Tag>
                         {trafficStats.limit > 0 && (
                             <span className="text-xs text-gray-500">
                                 {(trafficStats.used / (1024 * 1024 * 1024)).toFixed(2)}GB / {(trafficStats.limit / (1024 * 1024 * 1024)).toFixed(0)}GB
@@ -217,11 +217,11 @@ const AgentList = () => {
             render: (_, record) => {
                 const config = record.tamperProtectConfig;
                 if (!config || !config.enabled) {
-                    return <Tag bordered={false}>未启用</Tag>;
+                    return <Tag variant={'filled'}>未启用</Tag>;
                 }
                 return (
                     <div className="flex flex-col gap-1">
-                        <Tag color="green" bordered={false}>已启用</Tag>
+                        <Tag color="green" variant={'filled'}>已启用</Tag>
                         {config.paths && config.paths.length > 0 && (
                             <span className="text-xs text-gray-500">{config.paths.length} 个路径</span>
                         )}
@@ -237,9 +237,9 @@ const AgentList = () => {
             render: (_, record) => {
                 const config = record.sshLoginConfig;
                 if (!config || !config.enabled) {
-                    return <Tag bordered={false}>未启用</Tag>;
+                    return <Tag variant={'filled'}>未启用</Tag>;
                 }
-                return <Tag color="green" bordered={false}>已启用</Tag>;
+                return <Tag color="green" variant={'filled'}>已启用</Tag>;
             },
         },
         {
@@ -259,11 +259,11 @@ const AgentList = () => {
                     <div className="flex flex-col gap-1">
                         <div>{expireDate.toLocaleDateString('zh-CN')}</div>
                         {isExpired ? (
-                            <Tag color="red" bordered={false}>已过期</Tag>
+                            <Tag color="red" variant={'filled'}>已过期</Tag>
                         ) : daysLeft <= 7 ? (
-                            <Tag color="orange" bordered={false}>{daysLeft}天后到期</Tag>
+                            <Tag color="orange" variant={'filled'}>{daysLeft}天后到期</Tag>
                         ) : daysLeft <= 30 ? (
-                            <Tag color="gold" bordered={false}>{daysLeft}天后到期</Tag>
+                            <Tag color="gold" variant={'filled'}>{daysLeft}天后到期</Tag>
                         ) : null}
                     </div>
                 );

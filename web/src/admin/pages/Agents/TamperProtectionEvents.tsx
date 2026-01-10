@@ -1,8 +1,8 @@
 import React, {useRef} from 'react';
 import {App, Button, Tag, Tooltip} from 'antd';
 import {FileWarning} from 'lucide-react';
-import type {ActionType, ProColumns} from '@ant-design/pro-table';
-import ProTable from '@ant-design/pro-table';
+import type {ActionType, ProColumns} from '@ant-design/pro-components';
+import {ProTable} from '@ant-design/pro-components';
 import {useMutation} from '@tanstack/react-query';
 import {deleteTamperEvents, getTamperEvents, type TamperEvent} from '@/api/tamper';
 import {getErrorMessage} from '@/lib/utils';

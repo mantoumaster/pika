@@ -137,11 +137,11 @@ const AgentDetail = () => {
                                     const daysLeft = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
                                     if (isExpired) {
-                                        return <Tag color="red" bordered={false}>已过期</Tag>;
+                                        return <Tag color="red" variant={'filled'}>已过期</Tag>;
                                     } else if (daysLeft <= 7) {
-                                        return <Tag color="orange" bordered={false}>{daysLeft}天后到期</Tag>;
+                                        return <Tag color="orange" variant={'filled'}>{daysLeft}天后到期</Tag>;
                                     } else if (daysLeft <= 30) {
-                                        return <Tag color="gold" bordered={false}>{daysLeft}天后到期</Tag>;
+                                        return <Tag color="gold" variant={'filled'}>{daysLeft}天后到期</Tag>;
                                     }
                                     return null;
                                 })()}
