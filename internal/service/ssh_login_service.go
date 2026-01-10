@@ -10,6 +10,7 @@ import (
 	"github.com/dushixiang/pika/internal/protocol"
 	"github.com/dushixiang/pika/internal/repo"
 	"github.com/dushixiang/pika/internal/websocket"
+	"github.com/google/uuid"
 
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
@@ -131,6 +132,7 @@ func (s *SSHLoginService) HandleEvent(ctx context.Context, agentID string, event
 
 	// 保存事件到数据库
 	event := &models.SSHLoginEvent{
+		ID:        uuid.NewString(),
 		AgentID:   agentID,
 		Username:  eventData.Username,
 		IP:        eventData.IP,
