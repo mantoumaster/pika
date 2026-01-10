@@ -22,14 +22,16 @@ type TamperService struct {
 	agentRepo       *repo.AgentRepo
 	TamperEventRepo *repo.TamperEventRepo
 	wsManager       *websocket.Manager
+	notificationSvc *NotificationService
 }
 
-func NewTamperService(logger *zap.Logger, db *gorm.DB, wsManager *websocket.Manager) *TamperService {
+func NewTamperService(logger *zap.Logger, db *gorm.DB, wsManager *websocket.Manager, notificationSvc *NotificationService) *TamperService {
 	return &TamperService{
 		logger:          logger,
 		agentRepo:       repo.NewAgentRepo(db),
 		TamperEventRepo: repo.NewTamperEventRepo(db),
 		wsManager:       wsManager,
+		notificationSvc: notificationSvc,
 	}
 }
 
@@ -200,7 +202,59 @@ func (s *TamperService) CreateEvent(ctx context.Context, agentID string, eventDa
 		Timestamp: eventData.Timestamp,
 		CreatedAt: time.Now().UnixMilli(),
 	}
-	return s.TamperEventRepo.Create(ctx, event)
+	if err := s.TamperEventRepo.Create(ctx, event); err != nil {
+		return err
+	}
+
+	s.sendTamperEventNotification(agentID, eventData)
+	return nil
+}
+
+func (s *TamperService) sendTamperEventNotification(agentID string, eventData *protocol.TamperEventData) {
+	if s.notificationSvc == nil {
+		return
+	}
+
+	agent, err := s.agentRepo.FindById(context.Background(), agentID)
+	if err != nil {
+		s.logger.Error("获取探针信息失败", zap.String("agentId", agentID), zap.Error(err))
+		return
+	}
+
+	firedAt := eventData.Timestamp
+	if firedAt == 0 {
+		firedAt = time.Now().UnixMilli()
+	}
+
+	restoredText := "否"
+	if eventData.Restored {
+		restoredText = "是"
+	}
+
+	record := &models.AlertRecord{
+		AgentID:     agentID,
+		AgentName:   agent.Name,
+		AlertType:   "tamper",
+		Message:     fmt.Sprintf("防篡改事件：路径 %s，操作 %s，详情 %s，自动恢复 %s", eventData.Path, eventData.Operation, eventData.Details, restoredText),
+		Threshold:   0,
+		ActualValue: 0,
+		Level:       "warning",
+		Status:      "notice",
+		FiredAt:     firedAt,
+		CreatedAt:   firedAt,
+	}
+
+	go func(record *models.AlertRecord, agent *models.Agent) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := s.notificationSvc.SendAlertNotification(ctx, NotificationTypeTamperEvt, record, agent); err != nil {
+			s.logger.Error("发送防篡改事件通知失败",
+				zap.String("agentId", agentID),
+				zap.Error(err),
+			)
+		}
+	}(record, &agent)
 }
 
 func (s *TamperService) HandleConfigResult(ctx context.Context, agentID string, resp protocol.TamperProtectResponse) error {

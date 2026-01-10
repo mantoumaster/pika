@@ -67,9 +67,10 @@ type SystemConfig struct {
 
 // AlertConfig 全局告警配置
 type AlertConfig struct {
-	Enabled bool       `json:"enabled"` // 是否启用全局告警
-	MaskIP  bool       `json:"maskIP"`  // 是否在通知中打码 IP 地址
-	Rules   AlertRules `json:"rules"`   // 告警规则
+	Enabled       bool               `json:"enabled"`       // 是否启用全局告警
+	MaskIP        bool               `json:"maskIP"`        // 是否在通知中打码 IP 地址
+	Rules         AlertRules         `json:"rules"`         // 告警规则
+	Notifications AlertNotifications `json:"notifications"` // 通知开关
 }
 
 // AlertRules 告警规则
@@ -105,4 +106,11 @@ type AlertRules struct {
 	// 探针离线告警配置
 	AgentOfflineEnabled  bool `json:"agentOfflineEnabled"`  // 是否启用探针离线告警
 	AgentOfflineDuration int  `json:"agentOfflineDuration"` // 持续时间（秒）
+}
+
+// AlertNotifications 告警通知开关
+type AlertNotifications struct {
+	TrafficEnabled         bool `json:"trafficEnabled"`         // 流量告警通知
+	SSHLoginSuccessEnabled bool `json:"sshLoginSuccessEnabled"` // SSH 登录成功通知
+	TamperEventEnabled     bool `json:"tamperEventEnabled"`     // 防篡改事件通知
 }

@@ -14,16 +14,18 @@ import (
 )
 
 type TrafficService struct {
-	logger          *zap.Logger
-	agentRepo       *repo.AgentRepo
-	alertRecordRepo *repo.AlertRecordRepo
+	logger              *zap.Logger
+	agentRepo           *repo.AgentRepo
+	alertRecordRepo     *repo.AlertRecordRepo
+	notificationService *NotificationService
 }
 
-func NewTrafficService(logger *zap.Logger, db *gorm.DB) *TrafficService {
+func NewTrafficService(logger *zap.Logger, db *gorm.DB, notificationService *NotificationService) *TrafficService {
 	return &TrafficService{
-		logger:          logger,
-		agentRepo:       repo.NewAgentRepo(db),
-		alertRecordRepo: repo.NewAlertRecordRepo(db),
+		logger:              logger,
+		agentRepo:           repo.NewAgentRepo(db),
+		alertRecordRepo:     repo.NewAlertRecordRepo(db),
+		notificationService: notificationService,
 	}
 }
 
@@ -112,23 +114,26 @@ func (s *TrafficService) checkTrafficAlerts(ctx context.Context, agent *models.A
 
 	// 100% 告警
 	if usagePercent >= 100 && !stats.AlertSent100 {
-		s.sendTrafficAlert(ctx, agent, stats, 100, usagePercent)
-		stats.AlertSent100 = true
+		if s.sendTrafficAlert(ctx, agent, stats, 100, usagePercent) {
+			stats.AlertSent100 = true
+		}
 	}
 	// 90% 告警
 	if usagePercent >= 90 && !stats.AlertSent90 {
-		s.sendTrafficAlert(ctx, agent, stats, 90, usagePercent)
-		stats.AlertSent90 = true
+		if s.sendTrafficAlert(ctx, agent, stats, 90, usagePercent) {
+			stats.AlertSent90 = true
+		}
 	}
 	// 80% 告警
 	if usagePercent >= 80 && !stats.AlertSent80 {
-		s.sendTrafficAlert(ctx, agent, stats, 80, usagePercent)
-		stats.AlertSent80 = true
+		if s.sendTrafficAlert(ctx, agent, stats, 80, usagePercent) {
+			stats.AlertSent80 = true
+		}
 	}
 }
 
 // sendTrafficAlert 发送流量告警
-func (s *TrafficService) sendTrafficAlert(ctx context.Context, agent *models.Agent, stats *models.TrafficStatsData, threshold int, actualPercent float64) {
+func (s *TrafficService) sendTrafficAlert(ctx context.Context, agent *models.Agent, stats *models.TrafficStatsData, threshold int, actualPercent float64) bool {
 	level := "info"
 	if threshold == 100 {
 		level = "critical"
@@ -148,7 +153,7 @@ func (s *TrafficService) sendTrafficAlert(ctx context.Context, agent *models.Age
 		Threshold:   float64(threshold),
 		ActualValue: actualPercent,
 		Level:       level,
-		Status:      "firing",
+		Status:      "notice",
 		FiredAt:     now,
 		CreatedAt:   now,
 	}
@@ -156,7 +161,7 @@ func (s *TrafficService) sendTrafficAlert(ctx context.Context, agent *models.Age
 	// 创建告警记录
 	if err := s.alertRecordRepo.CreateAlertRecord(ctx, record); err != nil {
 		s.logger.Error("创建流量告警记录失败", zap.Error(err))
-		return
+		return false
 	}
 
 	s.logger.Info("流量告警记录已创建",
@@ -165,8 +170,27 @@ func (s *TrafficService) sendTrafficAlert(ctx context.Context, agent *models.Age
 		zap.Int("threshold", threshold),
 		zap.Float64("actualPercent", actualPercent))
 
-	// 注意: 告警通知需要通过告警系统的统一通知机制发送,
-	// 这里只创建记录,通知由其他机制处理
+	s.sendTrafficAlertNotification(record, agent)
+	return true
+}
+
+func (s *TrafficService) sendTrafficAlertNotification(record *models.AlertRecord, agent *models.Agent) {
+	if s.notificationService == nil {
+		return
+	}
+
+	go func(record *models.AlertRecord, agent *models.Agent) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := s.notificationService.SendAlertNotification(ctx, NotificationTypeTraffic, record, agent); err != nil {
+			s.logger.Error("发送流量告警通知失败",
+				zap.String("agentId", agent.ID),
+				zap.Int64("recordId", record.ID),
+				zap.Error(err),
+			)
+		}
+	}(record, agent)
 }
 
 // formatBytes 格式化字节数为人类可读的格式

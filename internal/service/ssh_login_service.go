@@ -23,16 +23,18 @@ type SSHLoginService struct {
 	agentRepo         *repo.AgentRepo
 	wsManager         *websocket.Manager
 	geoIPSvc          *GeoIPService
+	notificationSvc   *NotificationService
 }
 
 // NewSSHLoginService 创建服务
-func NewSSHLoginService(logger *zap.Logger, db *gorm.DB, wsManager *websocket.Manager, geoIPSvc *GeoIPService) *SSHLoginService {
+func NewSSHLoginService(logger *zap.Logger, db *gorm.DB, wsManager *websocket.Manager, geoIPSvc *GeoIPService, notificationSvc *NotificationService) *SSHLoginService {
 	return &SSHLoginService{
 		logger:            logger,
 		SSHLoginEventRepo: repo.NewSSHLoginEventRepo(db),
 		agentRepo:         repo.NewAgentRepo(db),
 		wsManager:         wsManager,
 		geoIPSvc:          geoIPSvc,
+		notificationSvc:   notificationSvc,
 	}
 }
 
@@ -152,7 +154,65 @@ func (s *SSHLoginService) HandleEvent(ctx context.Context, agentID string, event
 		zap.String("ip", eventData.IP),
 		zap.String("status", eventData.Status))
 
+	if eventData.Status == "success" {
+		s.sendLoginSuccessNotification(agentID, eventData)
+	}
+
 	return nil
+}
+
+func (s *SSHLoginService) sendLoginSuccessNotification(agentID string, eventData protocol.SSHLoginEvent) {
+	if s.notificationSvc == nil {
+		return
+	}
+
+	agent, err := s.agentRepo.FindById(context.Background(), agentID)
+	if err != nil {
+		s.logger.Error("获取探针信息失败", zap.String("agentId", agentID), zap.Error(err))
+		return
+	}
+
+	firedAt := eventData.Timestamp
+	if firedAt == 0 {
+		firedAt = time.Now().UnixMilli()
+	}
+
+	sourceIP := eventData.IP
+	if s.notificationSvc != nil {
+		if maskIP, err := s.notificationSvc.IsMaskIPEnabled(context.Background()); err == nil && maskIP {
+			sourceIP = maskIPAddress(sourceIP)
+		}
+	}
+
+	sourceAddr := sourceIP
+	if eventData.Port != "" {
+		sourceAddr = fmt.Sprintf("%s:%s", sourceIP, eventData.Port)
+	}
+
+	record := &models.AlertRecord{
+		AgentID:     agentID,
+		AgentName:   agent.Name,
+		AlertType:   "ssh_login",
+		Message:     fmt.Sprintf("SSH登录成功：用户 %s，来源 %s，方式 %s，终端 %s，会话 %s", eventData.Username, sourceAddr, eventData.Method, eventData.TTY, eventData.SessionID),
+		Threshold:   0,
+		ActualValue: 0,
+		Level:       "warning",
+		Status:      "notice",
+		FiredAt:     firedAt,
+		CreatedAt:   firedAt,
+	}
+
+	go func(record *models.AlertRecord, agent *models.Agent) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := s.notificationSvc.SendAlertNotification(ctx, NotificationTypeSSHLogin, record, agent); err != nil {
+			s.logger.Error("发送SSH登录成功通知失败",
+				zap.String("agentId", agentID),
+				zap.Error(err),
+			)
+		}
+	}(record, &agent)
 }
 
 // === 事件查询 ===

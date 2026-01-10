@@ -463,10 +463,18 @@ export interface AlertRules {
     agentOfflineDuration: number;   // 探针离线持续时间（秒）
 }
 
+export interface AlertNotifications {
+    trafficEnabled: boolean;         // 流量告警通知
+    sshLoginSuccessEnabled: boolean; // SSH 登录成功通知
+    tamperEventEnabled: boolean;     // 防篡改事件通知
+}
+
 // 全局告警配置（现在存储在 Property 中）
 export interface AlertConfig {
     enabled: boolean;  // 全局告警开关
+    maskIP: boolean;   // 是否在通知中打码 IP 地址
     rules: AlertRules;
+    notifications: AlertNotifications;
 }
 
 export interface AlertRecord {

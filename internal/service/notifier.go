@@ -29,6 +29,8 @@ type AlertTypeMetadata struct {
 	Name          string // 中文名称
 	ThresholdUnit string // 阈值单位
 	ValueUnit     string // 当前值单位
+	ShowThreshold bool   // 是否显示阈值
+	ShowActual    bool   // 是否显示当前值
 }
 
 // 告警类型元数据映射
@@ -37,36 +39,71 @@ var alertTypeMetadataMap = map[string]AlertTypeMetadata{
 		Name:          "CPU告警",
 		ThresholdUnit: "%",
 		ValueUnit:     "%",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"memory": {
 		Name:          "内存告警",
 		ThresholdUnit: "%",
 		ValueUnit:     "%",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"disk": {
 		Name:          "磁盘告警",
 		ThresholdUnit: "%",
 		ValueUnit:     "%",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"network": {
 		Name:          "网络告警",
 		ThresholdUnit: "MB/s",
 		ValueUnit:     "MB/s",
+		ShowThreshold: true,
+		ShowActual:    true,
+	},
+	"traffic": {
+		Name:          "流量告警",
+		ThresholdUnit: "%",
+		ValueUnit:     "%",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"cert": {
 		Name:          "证书告警",
 		ThresholdUnit: "天",
 		ValueUnit:     "天",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"service": {
 		Name:          "服务告警",
 		ThresholdUnit: "秒",
 		ValueUnit:     "秒",
+		ShowThreshold: true,
+		ShowActual:    true,
 	},
 	"agent_offline": {
 		Name:          "探针离线告警",
 		ThresholdUnit: "秒",
 		ValueUnit:     "秒",
+		ShowThreshold: true,
+		ShowActual:    true,
+	},
+	"ssh_login": {
+		Name:          "SSH登录通知",
+		ThresholdUnit: "",
+		ValueUnit:     "",
+		ShowThreshold: false,
+		ShowActual:    false,
+	},
+	"tamper": {
+		Name:          "防篡改事件通知",
+		ThresholdUnit: "",
+		ValueUnit:     "",
+		ShowThreshold: false,
+		ShowActual:    false,
 	},
 }
 
@@ -112,6 +149,8 @@ func getAlertTypeMetadata(alertType string) AlertTypeMetadata {
 		Name:          "未知告警",
 		ThresholdUnit: "",
 		ValueUnit:     "",
+		ShowThreshold: true,
+		ShowActual:    true,
 	}
 }
 
@@ -143,6 +182,8 @@ func (n *Notifier) buildMessage(agent *models.Agent, record *models.AlertRecord,
 		return n.buildFiringMessage(agent, record, displayIP, levelIcon, metadata)
 	case "resolved":
 		return n.buildResolvedMessage(agent, record, displayIP, metadata)
+	case "notice":
+		return n.buildNoticeMessage(agent, record, displayIP, levelIcon, metadata)
 	default:
 		// 未知状态，返回基本信息
 		return fmt.Sprintf("⚠️ 未知告警状态: %s\n探针: %s (%s)", record.Status, agent.Name, agent.ID)
@@ -157,30 +198,27 @@ func (n *Notifier) buildFiringMessage(
 	levelIcon string,
 	metadata AlertTypeMetadata,
 ) string {
-	return fmt.Sprintf(
-		"%s %s\n\n"+
-			"探针: %s (%s)\n"+
-			"主机: %s\n"+
-			"IP: %s\n"+
-			"告警类型: %s\n"+
-			"告警消息: %s\n"+
-			"阈值: %.2f%s\n"+
-			"当前值: %.2f%s\n"+
-			"触发时间: %s",
-		levelIcon,
-		metadata.Name,
-		agent.Name,
-		agent.ID,
-		agent.Hostname,
-		displayIP,
-		record.AlertType,
-		record.Message,
-		record.Threshold,
-		metadata.ThresholdUnit,
-		record.ActualValue,
-		metadata.ValueUnit,
-		utils.FormatTimestamp(record.FiredAt),
-	)
+	lines := []string{
+		fmt.Sprintf("%s %s", levelIcon, metadata.Name),
+		"",
+		fmt.Sprintf("探针: %s (%s)", agent.Name, agent.ID),
+		fmt.Sprintf("主机: %s", agent.Hostname),
+		fmt.Sprintf("IP: %s", displayIP),
+		fmt.Sprintf("告警类型: %s", record.AlertType),
+		fmt.Sprintf("告警消息: %s", record.Message),
+	}
+
+	if metadata.ShowThreshold {
+		lines = append(lines, fmt.Sprintf("阈值: %.2f%s", record.Threshold, metadata.ThresholdUnit))
+	}
+
+	if metadata.ShowActual {
+		lines = append(lines, fmt.Sprintf("当前值: %.2f%s", record.ActualValue, metadata.ValueUnit))
+	}
+
+	lines = append(lines, fmt.Sprintf("触发时间: %s", utils.FormatTimestamp(record.FiredAt)))
+
+	return strings.Join(lines, "\n")
 }
 
 // buildResolvedMessage 构建告警恢复消息
@@ -197,26 +235,55 @@ func (n *Notifier) buildResolvedMessage(
 		durationStr = utils.FormatDuration(durationMs)
 	}
 
-	return fmt.Sprintf(
-		"✅ %s已恢复\n\n"+
-			"探针: %s (%s)\n"+
-			"主机: %s\n"+
-			"IP: %s\n"+
-			"告警类型: %s\n"+
-			"当前值: %.2f%s\n"+
-			"持续时间: %s\n"+
-			"恢复时间: %s",
-		metadata.Name,
-		agent.Name,
-		agent.ID,
-		agent.Hostname,
-		displayIP,
-		record.AlertType,
-		record.ActualValue,
-		metadata.ValueUnit,
-		durationStr,
-		utils.FormatTimestamp(record.ResolvedAt),
+	lines := []string{
+		fmt.Sprintf("✅ %s已恢复", metadata.Name),
+		"",
+		fmt.Sprintf("探针: %s (%s)", agent.Name, agent.ID),
+		fmt.Sprintf("主机: %s", agent.Hostname),
+		fmt.Sprintf("IP: %s", displayIP),
+		fmt.Sprintf("告警类型: %s", record.AlertType),
+	}
+
+	if metadata.ShowActual {
+		lines = append(lines, fmt.Sprintf("当前值: %.2f%s", record.ActualValue, metadata.ValueUnit))
+	}
+
+	lines = append(lines,
+		fmt.Sprintf("持续时间: %s", durationStr),
+		fmt.Sprintf("恢复时间: %s", utils.FormatTimestamp(record.ResolvedAt)),
 	)
+
+	return strings.Join(lines, "\n")
+}
+
+func (n *Notifier) buildNoticeMessage(
+	agent *models.Agent,
+	record *models.AlertRecord,
+	displayIP string,
+	levelIcon string,
+	metadata AlertTypeMetadata,
+) string {
+	lines := []string{
+		fmt.Sprintf("%s %s通知", levelIcon, metadata.Name),
+		"",
+		fmt.Sprintf("探针: %s (%s)", agent.Name, agent.ID),
+		fmt.Sprintf("主机: %s", agent.Hostname),
+		fmt.Sprintf("IP: %s", displayIP),
+		fmt.Sprintf("告警类型: %s", record.AlertType),
+		fmt.Sprintf("告警消息: %s", record.Message),
+	}
+
+	if metadata.ShowThreshold {
+		lines = append(lines, fmt.Sprintf("阈值: %.2f%s", record.Threshold, metadata.ThresholdUnit))
+	}
+
+	if metadata.ShowActual {
+		lines = append(lines, fmt.Sprintf("当前值: %.2f%s", record.ActualValue, metadata.ValueUnit))
+	}
+
+	lines = append(lines, fmt.Sprintf("触发时间: %s", utils.FormatTimestamp(record.FiredAt)))
+
+	return strings.Join(lines, "\n")
 }
 
 // sendDingTalk 发送钉钉通知

@@ -31,6 +31,7 @@ const AlertRecordList = () => {
         memory: '内存使用率',
         disk: '磁盘使用率',
         network: '网速',
+        traffic: '流量',
         cert: 'HTTPS证书',
         service: '服务下线',
         agent_offline: '探针离线',
@@ -52,6 +53,7 @@ const AlertRecordList = () => {
         const config = {
             firing: {color: 'red', text: '告警中'},
             resolved: {color: 'green', text: '已恢复'},
+            notice: {color: 'blue', text: '通知'},
         };
         const statusConfig = config[status as keyof typeof config] || {color: 'default', text: status};
         return <Tag color={statusConfig.color}>{statusConfig.text}</Tag>;

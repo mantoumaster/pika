@@ -58,6 +58,30 @@ const AlertSettings = () => {
                         </Form.Item>
                     </Card>
 
+                    <Card title="通知开关" type="inner">
+                        <Form.Item
+                            label="流量告警通知"
+                            name={['notifications', 'trafficEnabled']}
+                            valuePropName="checked"
+                        >
+                            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                        </Form.Item>
+                        <Form.Item
+                            label="SSH 登录成功通知"
+                            name={['notifications', 'sshLoginSuccessEnabled']}
+                            valuePropName="checked"
+                        >
+                            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                        </Form.Item>
+                        <Form.Item
+                            label="防篡改事件通知"
+                            name={['notifications', 'tamperEventEnabled']}
+                            valuePropName="checked"
+                        >
+                            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                        </Form.Item>
+                    </Card>
+
                     {/*<Divider orientation="left">告警规则</Divider>*/}
 
                     {[

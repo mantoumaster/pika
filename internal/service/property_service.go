@@ -127,12 +127,62 @@ func (s *PropertyService) GetSystemConfig(ctx context.Context) (*models.SystemCo
 
 // GetAlertConfig 获取告警配置
 func (s *PropertyService) GetAlertConfig(ctx context.Context) (*models.AlertConfig, error) {
-	var config models.AlertConfig
-	err := s.GetValue(ctx, PropertyIDAlertConfig, &config)
+	property, err := s.Get(ctx, PropertyIDAlertConfig)
 	if err != nil {
 		return nil, fmt.Errorf("获取告警配置失败: %w", err)
 	}
+
+	var config models.AlertConfig
+	if property.Value != "" {
+		if err := json.Unmarshal([]byte(property.Value), &config); err != nil {
+			return nil, fmt.Errorf("解析告警配置失败: %w", err)
+		}
+	}
+
+	applyAlertNotificationDefaults(&config, property.Value)
+
 	return &config, nil
+}
+
+func applyAlertNotificationDefaults(config *models.AlertConfig, rawValue string) {
+	defaults := models.AlertNotifications{
+		TrafficEnabled:         true,
+		SSHLoginSuccessEnabled: true,
+		TamperEventEnabled:     true,
+	}
+
+	if rawValue == "" {
+		config.Notifications = defaults
+		return
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(rawValue), &raw); err != nil {
+		config.Notifications = defaults
+		return
+	}
+
+	notificationsRaw, ok := raw["notifications"]
+	if !ok || len(notificationsRaw) == 0 {
+		config.Notifications = defaults
+		return
+	}
+
+	var notificationsMap map[string]json.RawMessage
+	if err := json.Unmarshal(notificationsRaw, &notificationsMap); err != nil {
+		config.Notifications = defaults
+		return
+	}
+
+	if _, ok := notificationsMap["trafficEnabled"]; !ok {
+		config.Notifications.TrafficEnabled = true
+	}
+	if _, ok := notificationsMap["sshLoginSuccessEnabled"]; !ok {
+		config.Notifications.SSHLoginSuccessEnabled = true
+	}
+	if _, ok := notificationsMap["tamperEventEnabled"]; !ok {
+		config.Notifications.TamperEventEnabled = true
+	}
 }
 
 // SetAlertConfig 设置告警配置
@@ -246,6 +296,11 @@ func (s *PropertyService) InitializeDefaultConfigs(ctx context.Context) error {
 			Name: "告警配置",
 			Value: models.AlertConfig{
 				Enabled: true, // 默认启用告警
+				Notifications: models.AlertNotifications{
+					TrafficEnabled:         true,
+					SSHLoginSuccessEnabled: true,
+					TamperEventEnabled:     true,
+				},
 				Rules: models.AlertRules{
 					CPUEnabled:           true,
 					CPUThreshold:         80,
