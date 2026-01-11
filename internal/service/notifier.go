@@ -92,14 +92,14 @@ var alertTypeMetadataMap = map[string]AlertTypeMetadata{
 		ShowActual:    true,
 	},
 	"ssh_login": {
-		Name:          "SSH登录通知",
+		Name:          "SSH登录成功",
 		ThresholdUnit: "",
 		ValueUnit:     "",
 		ShowThreshold: false,
 		ShowActual:    false,
 	},
 	"tamper": {
-		Name:          "防篡改事件通知",
+		Name:          "防篡改事件",
 		ThresholdUnit: "",
 		ValueUnit:     "",
 		ShowThreshold: false,
@@ -201,7 +201,7 @@ func (n *Notifier) buildFiringMessage(
 	lines := []string{
 		fmt.Sprintf("%s %s", levelIcon, metadata.Name),
 		"",
-		fmt.Sprintf("探针: %s (%s)", agent.Name, agent.ID),
+		fmt.Sprintf("探针: %s", agent.Name),
 		fmt.Sprintf("主机: %s", agent.Hostname),
 		fmt.Sprintf("IP: %s", displayIP),
 		fmt.Sprintf("告警类型: %s", record.AlertType),
