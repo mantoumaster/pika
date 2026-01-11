@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/dushixiang/pika/internal/models"
 	"github.com/dushixiang/pika/internal/service"
 	"github.com/go-orz/orz"
 	"github.com/labstack/echo/v4"
@@ -27,16 +28,13 @@ func NewTamperHandler(logger *zap.Logger, tamperService *service.TamperService) 
 func (h *TamperHandler) UpdateConfig(c echo.Context) error {
 	agentID := c.Param("id")
 
-	var req struct {
-		Enabled bool     `json:"enabled"`
-		Paths   []string `json:"paths"`
-	}
+	var req models.TamperProtectConfigData
 
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
 
-	err := h.tamperService.UpdateConfig(c.Request().Context(), agentID, req.Enabled, req.Paths)
+	err := h.tamperService.UpdateConfig(c.Request().Context(), agentID, &req)
 	if err != nil {
 		h.logger.Error("更新防篡改配置失败", zap.Error(err), zap.String("agentId", agentID))
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{

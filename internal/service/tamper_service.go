@@ -54,7 +54,7 @@ func (s *TamperService) UpdateConfigByAgentID(ctx context.Context, agentID strin
 }
 
 // UpdateConfig 更新探针的防篡改配置
-func (s *TamperService) UpdateConfig(ctx context.Context, agentID string, enabled bool, paths []string) error {
+func (s *TamperService) UpdateConfig(ctx context.Context, agentID string, req *models.TamperProtectConfigData) error {
 	// 查找现有配置
 	config, err := s.GetConfigByAgentID(ctx, agentID)
 	if err != nil {
@@ -72,7 +72,7 @@ func (s *TamperService) UpdateConfig(ctx context.Context, agentID string, enable
 	var added, removed []string
 
 	// 处理不同的状态转换场景
-	if !enabled {
+	if !req.Enabled {
 		// 场景1: 禁用防篡改功能，需要移除所有旧的路径配置
 		removed = oldPaths
 		added = []string{}
@@ -80,17 +80,17 @@ func (s *TamperService) UpdateConfig(ctx context.Context, agentID string, enable
 	} else if !wasEnabled {
 		// 场景2: 从禁用切换到启用，所有路径都作为新增
 		// 因为探针端已经移除了所有监控，需要重新添加
-		added = paths
+		added = req.Paths
 		removed = []string{}
 	} else {
 		// 场景3: 启用状态下的正常增量更新
-		added, removed = s.calculatePathDiff(oldPaths, paths)
+		added, removed = s.calculatePathDiff(oldPaths, req.Paths)
 	}
 
 	// 创建或更新配置
 	newConfig := &models.TamperProtectConfigData{
-		Enabled:     enabled,
-		Paths:       paths,
+		Enabled:     req.Enabled,
+		Paths:       req.Paths,
 		ApplyStatus: "pending",
 	}
 
@@ -113,7 +113,7 @@ func (s *TamperService) UpdateConfig(ctx context.Context, agentID string, enable
 				zap.String("agentId", agentID),
 				zap.Strings("added", added),
 				zap.Strings("removed", removed),
-				zap.Int("totalPaths", len(paths)))
+				zap.Int("totalPaths", len(req.Paths)))
 		}
 	}()
 	return nil

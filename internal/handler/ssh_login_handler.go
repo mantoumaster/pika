@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/dushixiang/pika/internal/models"
 	"github.com/dushixiang/pika/internal/service"
 	"github.com/go-orz/orz"
 	"github.com/labstack/echo/v4"
@@ -50,15 +51,12 @@ func (h *SSHLoginHandler) GetConfig(c echo.Context) error {
 func (h *SSHLoginHandler) UpdateConfig(c echo.Context) error {
 	agentID := c.Param("id")
 
-	var req struct {
-		Enabled bool `json:"enabled"`
-	}
-
+	var req models.SSHLoginConfigData
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
 
-	err := h.service.UpdateConfig(c.Request().Context(), agentID, req.Enabled)
+	err := h.service.UpdateConfig(c.Request().Context(), agentID, &req)
 	if err != nil {
 		h.logger.Error("更新SSH登录监控配置失败", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
