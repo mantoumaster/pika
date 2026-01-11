@@ -25,8 +25,21 @@ func (h *AgentHandler) DownloadAgent(c echo.Context) error {
 	// 校验 API Key
 	apiKey := c.QueryParam("key")
 	if _, err := h.apiKeyService.ValidateApiKey(c.Request().Context(), apiKey); err != nil {
-		h.logger.Warn("download agent failed: invalid api key", zap.String("key", apiKey))
-		return orz.NewError(401, "无效的 API 密钥")
+		// API Key 校验失败，尝试 IP 白名单兜底（兼容旧版 Agent 自动更新）
+		clientIP := c.RealIP()
+		isOnline, checkErr := h.agentService.IsAgentOnlineByIP(c.Request().Context(), clientIP)
+		if checkErr != nil {
+			h.logger.Error("check agent online by ip failed", zap.String("ip", clientIP), zap.Error(checkErr))
+			return orz.NewError(500, "系统内部错误")
+		}
+
+		if !isOnline {
+			h.logger.Warn("download agent failed: invalid api key and ip not whitelisted",
+				zap.String("key", apiKey),
+				zap.String("ip", clientIP))
+			return orz.NewError(401, "无效的 API 密钥，且来源 IP 未在白名单中")
+		}
+		h.logger.Info("download agent allowed by ip whitelist", zap.String("ip", clientIP), zap.String("filename", filename))
 	}
 
 	// 从嵌入的文件系统读取
