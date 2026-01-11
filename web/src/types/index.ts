@@ -207,6 +207,16 @@ export interface NetworkSummary {
     totalInterfaces: number;      // 网卡数量
 }
 
+export interface NetworkInterfaceMetric {
+    interface: string;
+    macAddress?: string;
+    addrs?: string[];
+    bytesSentRate: number;
+    bytesRecvRate: number;
+    bytesSentTotal: number;
+    bytesRecvTotal: number;
+}
+
 // 主机信息
 export interface HostInfo {
     hostname: string;
@@ -416,6 +426,7 @@ export interface LatestMetrics {
     memory?: MemoryMetric;
     disk?: DiskSummary;       // 改为汇总数据
     network?: NetworkSummary; // 改为汇总数据
+    networkInterfaces?: NetworkInterfaceMetric[];
     networkConnection?: NetworkConnectionMetric; // 网络连接统计
     host?: HostInfo;          // 主机信息
     gpu?: GPUMetric[];        // GPU 列表

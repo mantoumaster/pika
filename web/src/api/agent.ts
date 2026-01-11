@@ -78,6 +78,10 @@ export const getAgentForAdmin = (id: string) => {
     return get<Agent>(`/admin/agents/${id}`);
 };
 
+export const getAgentLatestMetricsForAdmin = (agentId: string) => {
+    return get<LatestMetrics>(`/admin/agents/${agentId}/metrics/latest`);
+};
+
 export const getAgentMetrics = (params: GetAgentMetricsRequest) => {
     const {agentId, type, range = '1h', start, end, interface: interfaceName} = params;
     const query = new URLSearchParams();

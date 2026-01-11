@@ -142,6 +142,8 @@ func (h *AgentHandler) GetLatestMetrics(c echo.Context) error {
 	if !ok {
 		return orz.NewError(404, "探针最新指标不存在")
 	}
+	// 清空网络接口指标，避免返回敏感信息
+	metrics.NetworkInterfaces = nil
 
 	return orz.Ok(c, metrics)
 }

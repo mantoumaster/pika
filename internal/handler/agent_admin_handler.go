@@ -51,6 +51,17 @@ func (h *AgentHandler) GetForAdmin(c echo.Context) error {
 	return orz.Ok(c, agent)
 }
 
+// GetAdminLatestMetrics 获取探针最新指标（管理员接口，显示完整信息）
+func (h *AgentHandler) GetAdminLatestMetrics(c echo.Context) error {
+	id := c.Param("id")
+
+	metrics, ok := h.metricService.GetLatestMetrics(id)
+	if !ok {
+		return orz.NewError(404, "探针最新指标不存在")
+	}
+	return orz.Ok(c, metrics)
+}
+
 // SendCommand 向探针发送指令
 func (h *AgentHandler) SendCommand(c echo.Context) error {
 	agentID := c.Param("id")

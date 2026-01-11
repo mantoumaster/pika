@@ -6,8 +6,14 @@ import {Activity, ArrowLeft, Clock, FileWarning, Lock, RefreshCw, Shield, Termin
 import TamperProtection from './TamperProtection.tsx';
 import SSHLoginMonitor from './SSHLoginMonitor.tsx';
 import TrafficStats from './TrafficStats.tsx';
-import {getAgentForAdmin, getAuditResult, sendAuditCommand, type VPSAuditResult} from '@/api/agent.ts';
-import type {Agent} from '@/types';
+import {
+    getAgentForAdmin,
+    getAgentLatestMetricsForAdmin,
+    getAuditResult,
+    sendAuditCommand,
+    type VPSAuditResult
+} from '@/api/agent.ts';
+import type {Agent, LatestMetrics} from '@/types';
 import dayjs from 'dayjs';
 import {getErrorMessage} from '@/lib/utils';
 import AuditResultView from './AuditResultView';
@@ -19,6 +25,7 @@ const AgentDetail = () => {
     const {message: messageApi} = App.useApp();
     const [loading, setLoading] = useState(false);
     const [agent, setAgent] = useState<Agent | null>(null);
+    const [latestMetrics, setLatestMetrics] = useState<LatestMetrics | null>(null);
     const [auditResult, setAuditResult] = useState<VPSAuditResult | null>(null);
     const [auditing, setAuditing] = useState(false);
     const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'info');
@@ -28,13 +35,15 @@ const AgentDetail = () => {
 
         setLoading(true);
         try {
-            const [agentRes, auditRes] = await Promise.all([
+            const [agentRes, auditRes, latestMetricsRes] = await Promise.all([
                 getAgentForAdmin(id),
                 getAuditResult(id).catch(() => ({data: null})),
+                getAgentLatestMetricsForAdmin(id).catch(() => ({data: null})),
             ]);
 
             setAgent(agentRes.data);
             setAuditResult(auditRes.data);
+            setLatestMetrics(latestMetricsRes.data || null);
         } catch (error: any) {
             messageApi.error(error.response?.data?.message || '获取探针信息失败');
         } finally {
@@ -104,6 +113,13 @@ const AgentDetail = () => {
     ];
 
 
+    const deviceIpInterfaces = (latestMetrics?.networkInterfaces || [])
+        .map((netInterface) => ({
+            name: netInterface.interface,
+            addrs: Array.from(new Set((netInterface.addrs || []).map((addr) => addr.trim()).filter(Boolean))),
+        }))
+        .filter((netInterface) => netInterface.addrs.length > 0);
+
     // Tab 项配置
     const tabItems: TabsProps['items'] = [
         {
@@ -120,6 +136,24 @@ const AgentDetail = () => {
                     <Descriptions.Item label="探针ID">{agent?.id}</Descriptions.Item>
                     <Descriptions.Item label="主机名">{agent?.hostname}</Descriptions.Item>
                     <Descriptions.Item label="通信IP">{agent?.ip}</Descriptions.Item>
+                    <Descriptions.Item label="设备IP" span={2}>
+                        {deviceIpInterfaces.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                                {deviceIpInterfaces.map((netInterface) => (
+                                    <div key={netInterface.name} className="flex flex-col gap-1">
+                                        <span className="text-xs text-gray-500">{netInterface.name}</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {netInterface.addrs.map((addr) => (
+                                                <Tag key={`${netInterface.name}-${addr}`}>{addr}</Tag>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            '-'
+                        )}
+                    </Descriptions.Item>
                     <Descriptions.Item label="操作系统">
                         <Tag color="blue">{agent?.os}</Tag>
                     </Descriptions.Item>

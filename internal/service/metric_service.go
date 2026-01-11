@@ -127,6 +127,7 @@ func (s *MetricService) HandleMetricData(ctx context.Context, agentID string, me
 			TotalBytesRecvTotal: totalRecvTotal,
 			TotalInterfaces:     len(networkDataList),
 		}
+		latestMetrics.NetworkInterfaces = networkDataList
 		// 更新流量统计
 		if err := s.trafficService.UpdateAgentTraffic(ctx, agentID, totalRecvTotal, totalSentTotal); err != nil {
 			s.logger.Error("更新探针流量统计失败",

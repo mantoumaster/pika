@@ -26,6 +26,7 @@ type LatestMetrics struct {
 	Memory            *protocol.MemoryData            `json:"memory,omitempty"`
 	Disk              *DiskSummary                    `json:"disk,omitempty"`
 	Network           *NetworkSummary                 `json:"network,omitempty"`
+	NetworkInterfaces []protocol.NetworkData          `json:"networkInterfaces,omitempty"`
 	NetworkConnection *protocol.NetworkConnectionData `json:"networkConnection,omitempty"`
 	Host              *protocol.HostInfoData          `json:"host,omitempty"`
 	GPU               []protocol.GPUData              `json:"gpu,omitempty"`
