@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -290,6 +291,8 @@ func (a *Agent) readLoop(conn *websocket.Conn, done chan struct{}) error {
 			go a.handleTamperProtect(msg.Data)
 		case protocol.MessageTypeDDNSConfig:
 			go a.handleDDNSConfig(msg.Data)
+		case protocol.MessageTypePublicIPConfig:
+			go a.handlePublicIPConfig(msg.Data)
 		case protocol.MessageTypeSSHLoginConfig:
 			go a.handleSSHLoginConfig(conn, msg.Data)
 		case protocol.MessageTypeUninstall:
@@ -784,6 +787,93 @@ func (a *Agent) handleDDNSConfig(data json.RawMessage) {
 	} else {
 		slog.Info("DDNS IP 地址已上报")
 	}
+}
+
+// handlePublicIPConfig 处理公网 IP 采集配置
+func (a *Agent) handlePublicIPConfig(data json.RawMessage) {
+	var config protocol.PublicIPConfigData
+	if err := json.Unmarshal(data, &config); err != nil {
+		slog.Warn("解析公网 IP 采集配置失败", "error", err)
+		return
+	}
+
+	if !config.Enabled || (!config.IPv4Enabled && !config.IPv6Enabled) {
+		slog.Info("公网 IP 采集已禁用或未配置")
+		return
+	}
+
+	manager := a.getCollectorManager()
+	if manager == nil {
+		manager = collector.NewManager(a.cfg)
+		a.setCollectorManager(manager)
+	}
+
+	conn := a.getActiveConn()
+	if conn == nil {
+		slog.Debug("当前连接不可用，公网 IP 采集跳过")
+		return
+	}
+
+	var report protocol.PublicIPReportData
+
+	if config.IPv4Enabled {
+		ipv4, err := a.getPublicIPFromAPIs(manager, config.IPv4APIs, false)
+		if err != nil {
+			slog.Warn("获取 IPv4 失败", "error", err)
+		} else {
+			report.IPv4 = ipv4
+			slog.Info("获取 IPv4", "ip", ipv4)
+		}
+	}
+
+	if config.IPv6Enabled {
+		ipv6, err := a.getPublicIPFromAPIs(manager, config.IPv6APIs, true)
+		if err != nil {
+			slog.Warn("获取 IPv6 失败", "error", err)
+		} else {
+			report.IPv6 = ipv6
+			slog.Info("获取 IPv6", "ip", ipv6)
+		}
+	}
+
+	if report.IPv4 == "" && report.IPv6 == "" {
+		return
+	}
+
+	if err := conn.WriteJSON(protocol.OutboundMessage{
+		Type: protocol.MessageTypePublicIPReport,
+		Data: report,
+	}); err != nil {
+		slog.Warn("发送公网 IP 报告失败", "error", err)
+	}
+}
+
+func (a *Agent) getPublicIPFromAPIs(manager *collector.Manager, apis []string, isIPv6 bool) (string, error) {
+	if len(apis) == 0 {
+		return manager.GetPublicIP("", isIPv6)
+	}
+
+	var lastErr error
+	for _, api := range apis {
+		api = strings.TrimSpace(api)
+		if api == "" {
+			continue
+		}
+		if !strings.HasPrefix(api, "http://") && !strings.HasPrefix(api, "https://") {
+			lastErr = fmt.Errorf("非法 API 地址: %s", api)
+			continue
+		}
+		ip, err := manager.GetPublicIP(api, isIPv6)
+		if err == nil && ip != "" {
+			return ip, nil
+		}
+		lastErr = err
+	}
+
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", fmt.Errorf("未能获取公网 IP 地址")
 }
 
 // collectAndSendDDNSIP 采集并发送 DDNS IP 地址

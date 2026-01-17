@@ -65,6 +65,50 @@ type SystemConfig struct {
 	Version      string `json:"-"`            // 系统版本
 }
 
+// PublicIPConfig 公网 IP 采集配置
+type PublicIPConfig struct {
+	Enabled         bool     `json:"enabled"`         // 是否启用采集
+	IntervalSeconds int      `json:"intervalSeconds"` // 采集间隔（秒）
+	IPv4Scope       string   `json:"ipv4Scope"`       // IPv4 采集范围: all/custom
+	IPv4AgentIDs    []string `json:"ipv4AgentIds"`    // IPv4 自定义探针列表
+	IPv6Scope       string   `json:"ipv6Scope"`       // IPv6 采集范围: all/custom
+	IPv6AgentIDs    []string `json:"ipv6AgentIds"`    // IPv6 自定义探针列表
+	IPv4Enabled     bool     `json:"ipv4Enabled"`     // 是否采集 IPv4
+	IPv6Enabled     bool     `json:"ipv6Enabled"`     // 是否采集 IPv6
+	IPv4APIs        []string `json:"ipv4Apis"`        // IPv4 API 列表
+	IPv6APIs        []string `json:"ipv6Apis"`        // IPv6 API 列表
+}
+
+func (c *PublicIPConfig) IsIPv4Target(agentID string) bool {
+	if c == nil || !c.IPv4Enabled {
+		return false
+	}
+	if c.IPv4Scope != "custom" {
+		return true
+	}
+	for _, id := range c.IPv4AgentIDs {
+		if id == agentID {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *PublicIPConfig) IsIPv6Target(agentID string) bool {
+	if c == nil || !c.IPv6Enabled {
+		return false
+	}
+	if c.IPv6Scope != "custom" {
+		return true
+	}
+	for _, id := range c.IPv6AgentIDs {
+		if id == agentID {
+			return true
+		}
+	}
+	return false
+}
+
 // AlertConfig 全局告警配置
 type AlertConfig struct {
 	Enabled       bool               `json:"enabled"`       // 是否启用全局告警

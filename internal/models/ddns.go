@@ -4,11 +4,11 @@ import "gorm.io/datatypes"
 
 // DDNSConfig DDNS 配置
 type DDNSConfig struct {
-	ID       string `gorm:"primaryKey" json:"id"`  // 配置ID (UUID)
-	AgentID  string `gorm:"index" json:"agentId"`  // 探针ID
-	Name     string `json:"name"`                  // 配置名称
-	Enabled  bool   `json:"enabled"`               // 是否启用
-	Provider string `gorm:"index" json:"provider"` // DNS服务商类型: aliyun, tencentcloud, cloudflare, huaweicloud
+	ID       string `gorm:"primaryKey" json:"id"` // 配置ID (UUID)
+	AgentID  string `json:"agentId"`              // 探针ID
+	Name     string `json:"name"`                 // 配置名称
+	Enabled  bool   `json:"enabled"`              // 是否启用
+	Provider string `json:"provider"`             // DNS服务商类型: aliyun, tencentcloud, cloudflare, huaweicloud
 
 	// 域名配置（IPv4 和 IPv6 分开）
 	DomainsIPv4 datatypes.JSONSlice[string] `json:"domainsIpv4"` // IPv4 域名列表

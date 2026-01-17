@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {Card} from '@portal/components/Card.tsx';
 import {EmptyState} from '@portal/components/EmptyState.tsx';
@@ -20,6 +20,7 @@ import {TemperatureChart} from '@portal/components/server/TemperatureChart.tsx';
 import {useAgentQuery, useLatestMetricsQuery} from '@portal/hooks/server.ts';
 import {SERVER_TIME_RANGE_OPTIONS} from '@portal/constants/time.ts';
 import LittleStatCard from '@portal/components/LittleStatCard.tsx';
+import {getCurrentUser} from '@/api/auth.ts';
 
 /**
  * 服务器详情页面
@@ -30,10 +31,29 @@ const ServerDetail = () => {
     const navigate = useNavigate();
     const [timeRange, setTimeRange] = useState<string>('15m');
     const [customRange, setCustomRange] = useState<{ start: number; end: number } | null>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     const handleCustomRangeApply = (range: { start: number; end: number }) => {
         setCustomRange(range);
     };
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const userInfo = localStorage.getItem('userInfo');
+        if (!token || !userInfo) {
+            setIsLoggedIn(false);
+            return;
+        }
+        getCurrentUser()
+            .then(() => {
+                setIsLoggedIn(true);
+            })
+            .catch(() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                setIsLoggedIn(false);
+            });
+    }, []);
 
     const customStart = timeRange === 'custom' ? customRange?.start : undefined;
     const customEnd = timeRange === 'custom' ? customRange?.end : undefined;
@@ -47,6 +67,12 @@ const ServerDetail = () => {
     const formatLoad = (value?: number) => (
         typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-'
     );
+    const deviceIpInterfaces = (latestMetrics?.networkInterfaces || [])
+        .map((netInterface) => ({
+            name: netInterface.interface,
+            addrs: Array.from(new Set((netInterface.addrs || []).map((addr) => addr.trim()).filter(Boolean))),
+        }))
+        .filter((netInterface) => netInterface.addrs.length > 0);
 
     if (isLoading) {
         return <LoadingSpinner/>;
@@ -68,6 +94,53 @@ const ServerDetail = () => {
 
                 {/* 主内容区 */}
                 <main className="flex-1 py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8 lg:space-y-10">
+                    {isLoggedIn && (agent.ipv4 || agent.ipv6) && (
+                        <Card
+                            title="公网地址"
+                            description="已登录用户可见的公网 IP 信息"
+                        >
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-1">
+                                    <div className="text-xs uppercase tracking-[0.25em] text-slate-500">IPv4</div>
+                                    <div className="font-mono text-sm">{agent.ipv4 || '-'}</div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-xs uppercase tracking-[0.25em] text-slate-500">IPv6</div>
+                                    <div className="font-mono text-sm">{agent.ipv6 || '-'}</div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+                    {isLoggedIn && (
+                        <Card
+                            title="网卡地址"
+                            description="已登录用户可见的设备网卡 IP 列表"
+                        >
+                            {deviceIpInterfaces.length > 0 ? (
+                                <div className="space-y-4">
+                                    {deviceIpInterfaces.map((netInterface) => (
+                                        <div key={netInterface.name} className="space-y-2">
+                                            <div className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                                                {netInterface.name}
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {netInterface.addrs.map((addr) => (
+                                                    <span
+                                                        key={`${netInterface.name}-${addr}`}
+                                                        className="px-2 py-0.5 rounded-sm border border-slate-200 bg-white/70 text-xs font-mono text-slate-600 dark:border-cyan-900/40 dark:bg-cyan-950/40 dark:text-cyan-200"
+                                                    >
+                                                        {addr}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-slate-500">暂无网卡地址</div>
+                            )}
+                        </Card>
+                    )}
                     {/* 系统信息 */}
                     <SystemInfoSection agent={agent} latestMetrics={latestMetrics}/>
 

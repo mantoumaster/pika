@@ -18,7 +18,8 @@ import BatchSSHLoginConfigModal from './BatchSSHLoginConfigModal';
 interface AgentFilters {
     name?: string;
     hostname?: string;
-    ip?: string;
+    ipv4?: string;
+    ipv6?: string;
     status?: string;
 }
 
@@ -40,13 +41,15 @@ const AgentList = () => {
     const pageSize = Number(searchParams.get('pageSize')) || 10;
     const name = searchParams.get('name') ?? '';
     const hostname = searchParams.get('hostname') ?? '';
-    const ip = searchParams.get('ip') ?? '';
+    const ipv4 = searchParams.get('ipv4') ?? '';
+    const ipv6 = searchParams.get('ipv6') ?? '';
     const status = searchParams.get('status') ?? '';
 
     const filters: AgentFilters = {
         name: name || undefined,
         hostname: hostname || undefined,
-        ip: ip || undefined,
+        ipv4: ipv4 || undefined,
+        ipv6: ipv6 || undefined,
         status: status || undefined,
     };
 
@@ -66,14 +69,15 @@ const AgentList = () => {
         error: agentsErrorDetail,
         refetch,
     } = useQuery({
-        queryKey: ['admin', 'agents', current, pageSize, filters.name, filters.hostname, filters.ip, filters.status],
+        queryKey: ['admin', 'agents', current, pageSize, filters.name, filters.hostname, filters.ipv4, filters.ipv6, filters.status],
         queryFn: async () => {
             const response = await getAgentPaging(
                 current,
                 pageSize,
                 filters.name,
                 filters.hostname,
-                filters.ip,
+                filters.ipv4,
+                filters.ipv6,
                 filters.status,
             );
             return response.data;
@@ -107,17 +111,19 @@ const AgentList = () => {
         searchForm.setFieldsValue({
             name: name || undefined,
             hostname: hostname || undefined,
-            ip: ip || undefined,
+            ipv4: ipv4 || undefined,
+            ipv6: ipv6 || undefined,
             status: status || undefined,
         });
-    }, [searchForm, name, hostname, ip, status]);
+    }, [searchForm, name, hostname, ipv4, ipv6, status]);
 
     const handleSearch = () => {
         const values = searchForm.getFieldsValue();
         const nextParams = new URLSearchParams(searchParams);
         const nextName = values.name?.trim();
         const nextHostname = values.hostname?.trim();
-        const nextIp = values.ip?.trim();
+        const nextIpv4 = values.ipv4?.trim();
+        const nextIpv6 = values.ipv6?.trim();
         const nextStatus = values.status;
 
         if (nextName) {
@@ -132,10 +138,16 @@ const AgentList = () => {
             nextParams.delete('hostname');
         }
 
-        if (nextIp) {
-            nextParams.set('ip', nextIp);
+        if (nextIpv4) {
+            nextParams.set('ipv4', nextIpv4);
         } else {
-            nextParams.delete('ip');
+            nextParams.delete('ipv4');
+        }
+
+        if (nextIpv6) {
+            nextParams.set('ipv6', nextIpv6);
+        } else {
+            nextParams.delete('ipv6');
         }
 
         if (nextStatus) {
@@ -154,7 +166,8 @@ const AgentList = () => {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('name');
         nextParams.delete('hostname');
-        nextParams.delete('ip');
+        nextParams.delete('ipv4');
+        nextParams.delete('ipv6');
         nextParams.delete('status');
         nextParams.set('page', '1');
         nextParams.set('pageSize', String(pageSize));
@@ -282,6 +295,26 @@ const AgentList = () => {
             key: 'hostname',
             ellipsis: true,
             width: 150,
+        },
+        {
+            title: 'IPv4',
+            dataIndex: 'ipv4',
+            key: 'ipv4',
+            ellipsis: true,
+            width: 160,
+            render: (value) => (
+                <span className="font-mono text-xs">{value || '-'}</span>
+            ),
+        },
+        {
+            title: 'IPv6',
+            dataIndex: 'ipv6',
+            key: 'ipv6',
+            ellipsis: true,
+            width: 200,
+            render: (value) => (
+                <span className="font-mono text-xs">{value || '-'}</span>
+            ),
         },
         {
             title: '版本',
@@ -505,8 +538,11 @@ const AgentList = () => {
                 <Form.Item label="主机名" name="hostname">
                     <Input placeholder="请输入主机名" style={{width: 180}}/>
                 </Form.Item>
-                <Form.Item label="IP" name="ip">
-                    <Input placeholder="请输入IP" style={{width: 180}}/>
+                <Form.Item label="IPv4" name="ipv4">
+                    <Input placeholder="请输入 IPv4" style={{width: 180}}/>
+                </Form.Item>
+                <Form.Item label="IPv6" name="ipv6">
+                    <Input placeholder="请输入 IPv6" style={{width: 220}}/>
                 </Form.Item>
                 <Form.Item label="状态" name="status">
                     <Select

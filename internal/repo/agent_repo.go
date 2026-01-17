@@ -44,11 +44,11 @@ func (r *AgentRepo) FindOnlineAgents(ctx context.Context) ([]models.Agent, error
 	return agents, err
 }
 
-// FindByIP 根据IP查找探针
+// FindByIP 根据公网IP查找探针
 func (r *AgentRepo) FindByIP(ctx context.Context, ip string) (*models.Agent, error) {
 	var agent models.Agent
 	err := r.db.WithContext(ctx).
-		Where("ip = ?", ip).
+		Where("ipv4 = ? OR ipv6 = ?", ip, ip).
 		First(&agent).Error
 	if err != nil {
 		return nil, err
@@ -68,11 +68,11 @@ func (r *AgentRepo) FindByHostname(ctx context.Context, hostname string) (*model
 	return &agent, nil
 }
 
-// FindByHostnameAndIP 根据主机名和IP查找探针
+// FindByHostnameAndIP 根据主机名和公网IP查找探针
 func (r *AgentRepo) FindByHostnameAndIP(ctx context.Context, hostname, ip string) (*models.Agent, error) {
 	var agent models.Agent
 	err := r.db.WithContext(ctx).
-		Where("hostname = ? AND ip = ?", hostname, ip).
+		Where("hostname = ? AND (ipv4 = ? OR ipv6 = ?)", hostname, ip, ip).
 		First(&agent).Error
 	if err != nil {
 		return nil, err

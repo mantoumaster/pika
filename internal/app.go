@@ -102,6 +102,8 @@ func setup(app *orz.App) error {
 
 	// 启动 DDNS 定时任务
 	go components.DDNSService.Run(ctx)
+	// 启动公网 IP 采集定时任务
+	go components.PublicIPService.Run(ctx)
 
 	// 设置API
 	setupApi(app, components)

@@ -29,7 +29,8 @@ func (h *AgentHandler) Get(c echo.Context) error {
 
 	// 未登录时隐藏敏感信息
 	if !isAuthenticated {
-		agent.IP = ""
+		agent.IPv4 = ""
+		agent.IPv6 = ""
 		agent.Hostname = ""
 	}
 
@@ -41,7 +42,8 @@ func (h *AgentHandler) GetAgents(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	// 根据认证状态返回相应的探针列表
-	agents, err := h.agentService.ListByAuth(ctx, utils.IsAuthenticated(c))
+	isAuthenticated := utils.IsAuthenticated(c)
+	agents, err := h.agentService.ListByAuth(ctx, isAuthenticated)
 	if err != nil {
 		return err
 	}
@@ -61,7 +63,7 @@ func (h *AgentHandler) GetAgents(c echo.Context) error {
 
 	result := make([]map[string]interface{}, 0, len(agents))
 	for _, agent := range agents {
-		result = append(result, h.buildAgentListItem(agent))
+		result = append(result, h.buildAgentListItem(agent, isAuthenticated))
 	}
 
 	return orz.Ok(c, orz.Map{
@@ -70,7 +72,7 @@ func (h *AgentHandler) GetAgents(c echo.Context) error {
 	})
 }
 
-func (h *AgentHandler) buildAgentListItem(agent models.Agent) map[string]interface{} {
+func (h *AgentHandler) buildAgentListItem(agent models.Agent, isAuthenticated bool) map[string]interface{} {
 	item := map[string]any{
 		"id":         agent.ID,
 		"name":       agent.Name,
@@ -100,7 +102,13 @@ func (h *AgentHandler) buildAgentListItem(agent models.Agent) map[string]interfa
 
 	metrics, ok := h.metricService.GetLatestMetrics(agent.ID)
 	if ok {
-		item["metrics"] = metrics
+		if !isAuthenticated && metrics != nil {
+			sanitized := *metrics
+			sanitized.NetworkInterfaces = nil
+			item["metrics"] = &sanitized
+		} else {
+			item["metrics"] = metrics
+		}
 	}
 
 	return item

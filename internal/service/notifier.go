@@ -139,6 +139,35 @@ func maskIPAddress(ip string) string {
 	return "****"
 }
 
+func joinAgentIPs(ipv4 string, ipv6 string) string {
+	parts := make([]string, 0, 2)
+	if ipv4 != "" {
+		parts = append(parts, ipv4)
+	}
+	if ipv6 != "" {
+		parts = append(parts, ipv6)
+	}
+	return strings.Join(parts, " / ")
+}
+
+func formatAgentIP(agent *models.Agent, mask bool) string {
+	ipv4 := strings.TrimSpace(agent.IPv4)
+	ipv6 := strings.TrimSpace(agent.IPv6)
+	if mask {
+		if ipv4 != "" {
+			ipv4 = maskIPAddress(ipv4)
+		}
+		if ipv6 != "" {
+			ipv6 = maskIPAddress(ipv6)
+		}
+	}
+	combined := joinAgentIPs(ipv4, ipv6)
+	if combined == "" {
+		return "-"
+	}
+	return combined
+}
+
 // getAlertTypeMetadata 获取告警类型元数据，如果不存在则返回默认值
 func getAlertTypeMetadata(alertType string) AlertTypeMetadata {
 	if metadata, ok := alertTypeMetadataMap[alertType]; ok {
@@ -171,10 +200,7 @@ func (n *Notifier) buildMessage(agent *models.Agent, record *models.AlertRecord,
 	metadata := getAlertTypeMetadata(record.AlertType)
 
 	// 处理 IP 地址显示
-	displayIP := agent.IP
-	if maskIP {
-		displayIP = maskIPAddress(agent.IP)
-	}
+	displayIP := formatAgentIP(agent, maskIP)
 
 	// 根据状态构建消息
 	switch record.Status {
@@ -559,6 +585,7 @@ func parseWebhookConfig(config map[string]interface{}) (*webhookConfig, error) {
 
 // buildJSONBody 构建 JSON 格式的请求体
 func (n *Notifier) buildJSONBody(agent *models.Agent, record *models.AlertRecord, message string) (io.Reader, error) {
+	agentIP := joinAgentIPs(strings.TrimSpace(agent.IPv4), strings.TrimSpace(agent.IPv6))
 	body := map[string]interface{}{
 		"msg_type": "text",
 		"text": map[string]string{
@@ -568,7 +595,9 @@ func (n *Notifier) buildJSONBody(agent *models.Agent, record *models.AlertRecord
 			"id":       agent.ID,
 			"name":     agent.Name,
 			"hostname": agent.Hostname,
-			"ip":       agent.IP,
+			"ip":       agentIP,
+			"ipv4":     agent.IPv4,
+			"ipv6":     agent.IPv6,
 		},
 		"alert": map[string]interface{}{
 			"type":        record.AlertType,
@@ -590,12 +619,15 @@ func (n *Notifier) buildJSONBody(agent *models.Agent, record *models.AlertRecord
 
 // buildFormBody 构建 Form 表单格式的请求体
 func (n *Notifier) buildFormBody(agent *models.Agent, record *models.AlertRecord, message string) io.Reader {
+	agentIP := joinAgentIPs(strings.TrimSpace(agent.IPv4), strings.TrimSpace(agent.IPv6))
 	formData := url.Values{}
 	formData.Set("message", message)
 	formData.Set("agent_id", agent.ID)
 	formData.Set("agent_name", agent.Name)
 	formData.Set("agent_hostname", agent.Hostname)
-	formData.Set("agent_ip", agent.IP)
+	formData.Set("agent_ip", agentIP)
+	formData.Set("agent_ipv4", agent.IPv4)
+	formData.Set("agent_ipv6", agent.IPv6)
 	formData.Set("alert_type", record.AlertType)
 	formData.Set("alert_level", record.Level)
 	formData.Set("alert_status", record.Status)
@@ -637,7 +669,11 @@ func (n *Notifier) buildCustomBody(agent *models.Agent, record *models.AlertReco
 		case "agent.hostname":
 			v = agent.Hostname
 		case "agent.ip":
-			v = agent.IP
+			v = joinAgentIPs(strings.TrimSpace(agent.IPv4), strings.TrimSpace(agent.IPv6))
+		case "agent.ipv4":
+			v = agent.IPv4
+		case "agent.ipv6":
+			v = agent.IPv6
 		case "alert.type":
 			v = record.AlertType
 		case "alert.level":
@@ -1020,7 +1056,7 @@ func (n *Notifier) SendWebhookByConfig(ctx context.Context, config map[string]in
 		ID:       "test-agent",
 		Name:     "测试探针",
 		Hostname: "test-host",
-		IP:       "127.0.0.1",
+		IPv4:     "127.0.0.1",
 	}
 	record := &models.AlertRecord{
 		AlertType:   "test",
@@ -1055,7 +1091,7 @@ func (n *Notifier) SendTestNotification(ctx context.Context, channelType string,
 			ID:       "test-agent",
 			Name:     "测试探针",
 			Hostname: "test-host",
-			IP:       "127.0.0.1",
+			IPv4:     "127.0.0.1",
 		}
 		record := &models.AlertRecord{
 			AlertType:   "test",

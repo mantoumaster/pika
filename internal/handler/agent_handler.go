@@ -17,13 +17,15 @@ type AgentHandler struct {
 	ddnsService     *service.DDNSService
 	sshLoginService *service.SSHLoginService
 	apiKeyService   *service.ApiKeyService
+	propertyService *service.PropertyService
 	wsManager       *ws.Manager
 	upgrader        websocket.Upgrader
 }
 
 func NewAgentHandler(logger *zap.Logger, agentService *service.AgentService, trafficService *service.TrafficService,
 	metricService *service.MetricService, monitorService *service.MonitorService, tamperService *service.TamperService,
-	ddnsService *service.DDNSService, sshLoginService *service.SSHLoginService, apiKeyService *service.ApiKeyService, wsManager *ws.Manager) *AgentHandler {
+	ddnsService *service.DDNSService, sshLoginService *service.SSHLoginService, apiKeyService *service.ApiKeyService,
+	propertyService *service.PropertyService, wsManager *ws.Manager) *AgentHandler {
 
 	h := &AgentHandler{
 		logger:          logger,
@@ -35,6 +37,7 @@ func NewAgentHandler(logger *zap.Logger, agentService *service.AgentService, tra
 		ddnsService:     ddnsService,
 		sshLoginService: sshLoginService,
 		apiKeyService:   apiKeyService,
+		propertyService: propertyService,
 		wsManager:       wsManager,
 	}
 

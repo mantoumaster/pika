@@ -135,7 +135,8 @@ const AgentDetail = () => {
                     <Descriptions.Item label="探针名称">{agent?.name}</Descriptions.Item>
                     <Descriptions.Item label="探针ID">{agent?.id}</Descriptions.Item>
                     <Descriptions.Item label="主机名">{agent?.hostname}</Descriptions.Item>
-                    <Descriptions.Item label="通信IP">{agent?.ip}</Descriptions.Item>
+                    <Descriptions.Item label="公网 IPv4">{agent?.ipv4 || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="公网 IPv6">{agent?.ipv6 || '-'}</Descriptions.Item>
                     <Descriptions.Item label="设备IP" span={2}>
                         {deviceIpInterfaces.length > 0 ? (
                             <div className="flex flex-col gap-2">

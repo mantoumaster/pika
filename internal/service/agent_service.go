@@ -57,13 +57,12 @@ func (s *AgentService) RegisterAgent(ctx context.Context, ip string, info *proto
 	}
 
 	// 使用探针的持久化 ID 来识别同一个探针
-	// 这样即使主机名或 IP 变化，也能正确识别
+	// 这样即使主机名变化，也能正确识别
 	existingAgent, err := s.AgentRepo.FindById(ctx, info.ID)
 	if err == nil {
-		// 更新现有探针信息（允许主机名、IP、名称等变化）
+		// 更新现有探针信息（允许主机名、名称等变化）
 		now := time.Now().UnixMilli()
 		existingAgent.Hostname = info.Hostname
-		existingAgent.IP = ip
 		existingAgent.OS = info.OS
 		existingAgent.Arch = info.Arch
 		existingAgent.Version = info.Version
@@ -89,7 +88,6 @@ func (s *AgentService) RegisterAgent(ctx context.Context, ip string, info *proto
 		ID:         info.ID, // 使用客户端持久化的 ID
 		Name:       info.Name,
 		Hostname:   info.Hostname,
-		IP:         ip,
 		OS:         info.OS,
 		Arch:       info.Arch,
 		Version:    info.Version,
@@ -117,6 +115,23 @@ func (s *AgentService) UpdateAgentStatus(ctx context.Context, agentID string, st
 	return s.AgentRepo.UpdateStatus(ctx, agentID, status, time.Now().UnixMilli())
 }
 
+// UpdatePublicIP 更新探针的公网 IP 信息
+func (s *AgentService) UpdatePublicIP(ctx context.Context, agentID string, ipv4 string, ipv6 string) error {
+	updates := map[string]interface{}{
+		"updated_at": time.Now().UnixMilli(),
+	}
+	if ipv4 != "" {
+		updates["ipv4"] = ipv4
+	}
+	if ipv6 != "" {
+		updates["ipv6"] = ipv6
+	}
+	if len(updates) == 1 {
+		return nil
+	}
+	return s.AgentRepo.UpdateInfo(ctx, agentID, updates)
+}
+
 // GetAgent 获取探针信息
 func (s *AgentService) GetAgent(ctx context.Context, agentID string) (*models.Agent, error) {
 	agent, err := s.AgentRepo.FindById(ctx, agentID)
@@ -136,7 +151,7 @@ func (s *AgentService) ListOnlineAgents(ctx context.Context) ([]models.Agent, er
 	return s.AgentRepo.FindOnlineAgents(ctx)
 }
 
-// IsAgentOnlineByIP 检查指定IP是否存在在线的探针
+// IsAgentOnlineByIP 检查指定公网IP是否存在在线的探针
 func (s *AgentService) IsAgentOnlineByIP(ctx context.Context, ip string) (bool, error) {
 	agent, err := s.AgentRepo.FindByIP(ctx, ip)
 	if err != nil {

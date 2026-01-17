@@ -63,6 +63,9 @@ const (
 	// DDNS 消息
 	MessageTypeDDNSConfig   MessageType = "ddns_config"
 	MessageTypeDDNSIPReport MessageType = "ddns_ip_report"
+	// 公网 IP 采集消息
+	MessageTypePublicIPConfig MessageType = "public_ip_config"
+	MessageTypePublicIPReport MessageType = "public_ip_report"
 	// SSH 登录监控消息
 	MessageTypeSSHLoginConfig       MessageType = "ssh_login_config"
 	MessageTypeSSHLoginConfigResult MessageType = "ssh_login_config_result" // Agent 反馈配置应用结果

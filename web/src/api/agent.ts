@@ -44,7 +44,15 @@ export interface GetAgentMetricsResponse {
 }
 
 // 管理员接口 - 获取所有探针（需要认证）
-export const getAgentPaging = (pageIndex: number = 1, pageSize: number = 10, name?: string, hostname?: string, ip?: string, status?: string) => {
+export const getAgentPaging = (
+    pageIndex: number = 1,
+    pageSize: number = 10,
+    name?: string,
+    hostname?: string,
+    ipv4?: string,
+    ipv6?: string,
+    status?: string,
+) => {
     const params = new URLSearchParams();
     params.append('pageIndex', pageIndex.toString());
     params.append('pageSize', pageSize.toString());
@@ -54,8 +62,11 @@ export const getAgentPaging = (pageIndex: number = 1, pageSize: number = 10, nam
     if (hostname) {
         params.append('hostname', hostname);
     }
-    if (ip) {
-        params.append('ip', ip);
+    if (ipv4) {
+        params.append('ipv4', ipv4);
+    }
+    if (ipv6) {
+        params.append('ipv6', ipv6);
     }
     if (status) {
         params.append('status', status);

@@ -38,6 +38,7 @@ func InitializeApp(logger *zap.Logger, db *gorm.DB, cfg *config.AppConfig) (*App
 		service.NewGeoIPService,
 		service.NewDDNSService,
 		service.NewSSHLoginService,
+		service.NewPublicIPService,
 
 		service.NewNotifier,
 		// WebSocket Manager
@@ -84,6 +85,7 @@ type AppComponents struct {
 	TamperService   *service.TamperService
 	DDNSService     *service.DDNSService
 	SSHLoginService *service.SSHLoginService
+	PublicIPService *service.PublicIPService
 
 	WSManager *websocket.Manager
 	VMClient  *vmclient.VMClient

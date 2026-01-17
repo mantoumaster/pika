@@ -57,6 +57,11 @@ func (h *AgentHandler) HandleWebSocket(c echo.Context) error {
 		h.logger.Error("failed to send ssh login config", zap.Error(err))
 		// 配置下发失败不中断连接，只记录日志
 	}
+	// 下发公网 IP 采集配置
+	if err := h.sendPublicIPConfig(conn, agent.ID); err != nil {
+		h.logger.Error("failed to send public ip config", zap.Error(err))
+		// 配置下发失败不中断连接，只记录日志
+	}
 
 	// 创建客户端并注册到管理器
 	client := h.newClient(agent.ID, conn)
@@ -86,6 +91,9 @@ func (h *AgentHandler) handleWebSocketMessage(ctx context.Context, agentID strin
 
 	case protocol.MessageTypeDDNSIPReport:
 		return h.handleDDNSIPReportMessage(ctx, agentID, data)
+
+	case protocol.MessageTypePublicIPReport:
+		return h.handlePublicIPReportMessage(ctx, agentID, data)
 
 	case protocol.MessageTypeSSHLoginEvent:
 		return h.handleSSHLoginEventMessage(ctx, agentID, data)
@@ -188,6 +196,15 @@ func (h *AgentHandler) handleDDNSIPReportMessage(ctx context.Context, agentID st
 	return h.ddnsService.HandleIPReport(ctx, agentID, &ipReport)
 }
 
+func (h *AgentHandler) handlePublicIPReportMessage(ctx context.Context, agentID string, data json.RawMessage) error {
+	var ipReport protocol.PublicIPReportData
+	if err := json.Unmarshal(data, &ipReport); err != nil {
+		h.logger.Error("failed to unmarshal public ip report", zap.Error(err))
+		return err
+	}
+	return h.agentService.UpdatePublicIP(ctx, agentID, ipReport.IPv4, ipReport.IPv6)
+}
+
 func (h *AgentHandler) handleSSHLoginEventMessage(ctx context.Context, agentID string, data json.RawMessage) error {
 	var eventData protocol.SSHLoginEvent
 	if err := json.Unmarshal(data, &eventData); err != nil {
@@ -274,6 +291,39 @@ func (h *AgentHandler) sendSSHLoginConfig(conn *websocket.Conn, agentID string) 
 		Type: protocol.MessageTypeSSHLoginConfig,
 		Data: protocol.SSHLoginConfig{
 			Enabled: config.Enabled,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return conn.WriteMessage(websocket.TextMessage, msgData)
+}
+
+func (h *AgentHandler) sendPublicIPConfig(conn *websocket.Conn, agentID string) error {
+	config, err := h.propertyService.GetPublicIPConfig(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if !config.Enabled || (!config.IPv4Enabled && !config.IPv6Enabled) {
+		return nil
+	}
+
+	ipv4Enabled := config.IsIPv4Target(agentID)
+	ipv6Enabled := config.IsIPv6Target(agentID)
+	if !ipv4Enabled && !ipv6Enabled {
+		return nil
+	}
+
+	msgData, err := json.Marshal(protocol.OutboundMessage{
+		Type: protocol.MessageTypePublicIPConfig,
+		Data: protocol.PublicIPConfigData{
+			Enabled:         config.Enabled,
+			IntervalSeconds: config.IntervalSeconds,
+			IPv4Enabled:     ipv4Enabled,
+			IPv6Enabled:     ipv6Enabled,
+			IPv4APIs:        config.IPv4APIs,
+			IPv6APIs:        config.IPv6APIs,
 		},
 	})
 	if err != nil {

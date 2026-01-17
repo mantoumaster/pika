@@ -61,7 +61,7 @@ export const ServerHero = ({agent, latestMetrics, onBack}: ServerHeroProps) => {
                                     <StatusBadge status={agent.status === 1 ? 'up' : 'down'}/>
                                 </div>
                                 <p className="mt-2 text-sm dark:text-cyan-500 font-mono">
-                                    {[agent.hostname, agent.ip].filter(Boolean).join(' · ') || '-'}
+                                    {[agent.hostname].filter(Boolean).join(' · ') || '-'}
                                 </p>
                             </div>
                         </div>

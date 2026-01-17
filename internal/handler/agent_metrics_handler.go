@@ -134,7 +134,8 @@ func (h *AgentHandler) GetLatestMetrics(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	// 验证探针访问权限
-	if _, err := h.agentService.GetAgentByAuth(ctx, id, utils.IsAuthenticated(c)); err != nil {
+	isAuthenticated := utils.IsAuthenticated(c)
+	if _, err := h.agentService.GetAgentByAuth(ctx, id, isAuthenticated); err != nil {
 		return err
 	}
 
@@ -142,8 +143,11 @@ func (h *AgentHandler) GetLatestMetrics(c echo.Context) error {
 	if !ok {
 		return orz.NewError(404, "探针最新指标不存在")
 	}
-	// 清空网络接口指标，避免返回敏感信息
-	metrics.NetworkInterfaces = nil
+	if !isAuthenticated {
+		sanitized := *metrics
+		sanitized.NetworkInterfaces = nil
+		return orz.Ok(c, &sanitized)
+	}
 
 	return orz.Ok(c, metrics)
 }

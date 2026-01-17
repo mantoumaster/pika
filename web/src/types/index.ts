@@ -18,7 +18,8 @@ export interface Agent {
     id: string;
     name: string;
     hostname: string;
-    ip: string;
+    ipv4?: string;
+    ipv6?: string;
     os: string;
     arch: string;
     version: string;

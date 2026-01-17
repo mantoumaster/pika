@@ -932,7 +932,9 @@ const NotificationChannels = () => {
                                         <div>• <code>agent_id</code> - 探针ID</div>
                                         <div>• <code>agent_name</code> - 探针名称</div>
                                         <div>• <code>agent_hostname</code> - 主机名</div>
-                                        <div>• <code>agent_ip</code> - IP地址</div>
+                                        <div>• <code>agent_ip</code> - IP地址(合并)</div>
+                                        <div>• <code>agent_ipv4</code> - IPv4 地址</div>
+                                        <div>• <code>agent_ipv6</code> - IPv6 地址</div>
                                         <div>• <code>alert_type</code> - 告警类型</div>
                                         <div>• <code>alert_level</code> - 告警级别</div>
                                         <div>• <code>alert_status</code> - 告警状态</div>
@@ -960,7 +962,9 @@ const NotificationChannels = () => {
                                         <div>• <code>{`{{agent.id}}`}</code> - 探针ID</div>
                                         <div>• <code>{`{{agent.name}}`}</code> - 探针名称</div>
                                         <div>• <code>{`{{agent.hostname}}`}</code> - 主机名</div>
-                                        <div>• <code>{`{{agent.ip}}`}</code> - IP地址</div>
+                                        <div>• <code>{`{{agent.ip}}`}</code> - IP地址(合并)</div>
+                                        <div>• <code>{`{{agent.ipv4}}`}</code> - IPv4 地址</div>
+                                        <div>• <code>{`{{agent.ipv6}}`}</code> - IPv6 地址</div>
                                         <div>• <code>{`{{alert.type}}`}</code> - 告警类型</div>
                                         <div>• <code>{`{{alert.level}}`}</code> - 告警级别</div>
                                         <div>• <code>{`{{alert.status}}`}</code> - 告警状态</div>

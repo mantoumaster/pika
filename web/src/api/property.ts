@@ -79,6 +79,7 @@ export const testNotificationChannel = async (type: string): Promise<{ message: 
 // ==================== 系统配置 ====================
 
 const PROPERTY_ID_SYSTEM_CONFIG = 'system_config';
+const PROPERTY_ID_PUBLIC_IP_CONFIG = 'public_ip_config';
 
 export interface SystemConfig {
     systemNameEn: string;  // 英文名称
@@ -90,6 +91,19 @@ export interface SystemConfig {
     customJS: string;      // 自定义 JS
 }
 
+export interface PublicIPConfig {
+    enabled: boolean;
+    intervalSeconds: number;
+    ipv4Scope: 'all' | 'custom';
+    ipv4AgentIds: string[];
+    ipv6Scope: 'all' | 'custom';
+    ipv6AgentIds: string[];
+    ipv4Enabled: boolean;
+    ipv6Enabled: boolean;
+    ipv4Apis: string[];
+    ipv6Apis: string[];
+}
+
 // 获取系统配置（管理后台使用）
 export const getSystemConfig = async (): Promise<SystemConfig> => {
     return getProperty<SystemConfig>(PROPERTY_ID_SYSTEM_CONFIG);
@@ -98,6 +112,16 @@ export const getSystemConfig = async (): Promise<SystemConfig> => {
 // 保存系统配置
 export const saveSystemConfig = async (config: SystemConfig): Promise<void> => {
     return saveProperty(PROPERTY_ID_SYSTEM_CONFIG, '系统配置', config);
+};
+
+// 获取公网 IP 采集配置
+export const getPublicIPConfig = async (): Promise<PublicIPConfig> => {
+    return getProperty<PublicIPConfig>(PROPERTY_ID_PUBLIC_IP_CONFIG);
+};
+
+// 保存公网 IP 采集配置
+export const savePublicIPConfig = async (config: PublicIPConfig): Promise<void> => {
+    return saveProperty(PROPERTY_ID_PUBLIC_IP_CONFIG, '公网 IP 采集配置', config);
 };
 
 // ==================== 告警配置 ====================

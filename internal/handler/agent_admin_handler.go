@@ -21,7 +21,8 @@ func (h *AgentHandler) Paging(c echo.Context) error {
 		PageRequest(pr).
 		Contains("name", c.QueryParam("name")).
 		Contains("hostname", c.QueryParam("hostname")).
-		Contains("ip", c.QueryParam("ip"))
+		Contains("ipv4", c.QueryParam("ipv4")).
+		Contains("ipv6", c.QueryParam("ipv6"))
 
 	// 处理状态筛选
 	if status == "online" {

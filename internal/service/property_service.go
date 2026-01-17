@@ -24,11 +24,28 @@ const (
 	PropertyIDSystemConfig = "system_config"
 	// PropertyIDMetricsConfig 指标配置的固定 ID
 	PropertyIDMetricsConfig = "metrics_config"
+	// PropertyIDPublicIPConfig 公网 IP 采集配置的固定 ID
+	PropertyIDPublicIPConfig = "public_ip_config"
 	// PropertyIDAlertConfig 告警配置的固定 ID
 	PropertyIDAlertConfig = "alert_config"
 	// PropertyIDDNSProviders DNS 服务商配置的固定 ID
 	PropertyIDDNSProviders = "dns_providers"
 )
+
+var defaultPublicIPv4APIs = []string{
+	"https://myip.ipip.net",
+	"https://ddns.oray.com/checkip",
+	"https://ip.3322.net",
+	"https://4.ipw.cn",
+	"https://v4.yinghualuo.cn/bejson",
+}
+
+var defaultPublicIPv6APIs = []string{
+	"https://speed.neu6.edu.cn/getIP.php",
+	"https://v6.ident.me",
+	"https://6.ipw.cn",
+	"https://v6.yinghualuo.cn/bejson",
+}
 
 type PropertyService struct {
 	repo   *repo.PropertyRepo
@@ -125,6 +142,16 @@ func (s *PropertyService) GetSystemConfig(ctx context.Context) (*models.SystemCo
 	return &systemConfig, nil
 }
 
+// GetPublicIPConfig 获取公网 IP 采集配置
+func (s *PropertyService) GetPublicIPConfig(ctx context.Context) (*models.PublicIPConfig, error) {
+	var config models.PublicIPConfig
+	if err := s.GetValue(ctx, PropertyIDPublicIPConfig, &config); err != nil {
+		return nil, fmt.Errorf("获取公网 IP 采集配置失败: %w", err)
+	}
+	applyPublicIPConfigDefaults(&config)
+	return &config, nil
+}
+
 // GetAlertConfig 获取告警配置
 func (s *PropertyService) GetAlertConfig(ctx context.Context) (*models.AlertConfig, error) {
 	property, err := s.Get(ctx, PropertyIDAlertConfig)
@@ -182,6 +209,30 @@ func applyAlertNotificationDefaults(config *models.AlertConfig, rawValue string)
 	}
 	if _, ok := notificationsMap["tamperEventEnabled"]; !ok {
 		config.Notifications.TamperEventEnabled = true
+	}
+}
+
+func applyPublicIPConfigDefaults(config *models.PublicIPConfig) {
+	if config.IntervalSeconds <= 0 {
+		config.IntervalSeconds = 300
+	}
+	if config.IPv4Scope == "" {
+		config.IPv4Scope = "all"
+	}
+	if config.IPv6Scope == "" {
+		config.IPv6Scope = "all"
+	}
+	if config.IPv4Scope != "all" && config.IPv4Scope != "custom" {
+		config.IPv4Scope = "all"
+	}
+	if config.IPv6Scope != "all" && config.IPv6Scope != "custom" {
+		config.IPv6Scope = "all"
+	}
+	if len(config.IPv4APIs) == 0 {
+		config.IPv4APIs = append([]string(nil), defaultPublicIPv4APIs...)
+	}
+	if len(config.IPv6APIs) == 0 {
+		config.IPv6APIs = append([]string(nil), defaultPublicIPv6APIs...)
 	}
 }
 
@@ -284,6 +335,22 @@ func (s *PropertyService) InitializeDefaultConfigs(ctx context.Context) error {
 				LogoBase64:   web.DefaultLogoBase64(),
 				ICPCode:      "",
 				DefaultView:  "grid",
+			},
+		},
+		{
+			ID:   PropertyIDPublicIPConfig,
+			Name: "公网 IP 采集配置",
+			Value: models.PublicIPConfig{
+				Enabled:         false,
+				IntervalSeconds: 300,
+				IPv4Scope:       "all",
+				IPv4AgentIDs:    []string{},
+				IPv6Scope:       "all",
+				IPv6AgentIDs:    []string{},
+				IPv4Enabled:     true,
+				IPv6Enabled:     true,
+				IPv4APIs:        defaultPublicIPv4APIs,
+				IPv6APIs:        defaultPublicIPv6APIs,
 			},
 		},
 		{
