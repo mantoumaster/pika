@@ -3,7 +3,7 @@ import {Link, useNavigate, useSearchParams} from 'react-router-dom';
 import type {MenuProps} from 'antd';
 import {App, Button, Divider, Dropdown, Form, Input, Select, Space, Table, Tag} from 'antd';
 import type {ColumnsType, TablePaginationConfig} from 'antd/es/table';
-import {Edit, Eye, MoreVertical, Plus, RefreshCw, Shield, Tags, Trash2} from 'lucide-react';
+import {Edit, Eye, FileWarning, Lock, MoreVertical, Plus, RefreshCw, Shield, Tags, Trash2} from 'lucide-react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {deleteAgent, getAgentPaging, getTags} from '@/api/agent.ts';
@@ -12,6 +12,8 @@ import {getErrorMessage} from '@/lib/utils';
 import {PageHeader} from '@admin/components';
 import AgentEditModal from './AgentEditModal';
 import BatchTagsModal from './BatchTagsModal';
+import BatchTamperProtectionModal from './BatchTamperProtectionModal';
+import BatchSSHLoginConfigModal from './BatchSSHLoginConfigModal';
 
 interface AgentFilters {
     name?: string;
@@ -30,6 +32,8 @@ const AgentList = () => {
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [batchTagModalVisible, setBatchTagModalVisible] = useState(false);
+    const [batchTamperModalVisible, setBatchTamperModalVisible] = useState(false);
+    const [batchSSHModalVisible, setBatchSSHModalVisible] = useState(false);
     const [editingAgentId, setEditingAgentId] = useState<string | undefined>(undefined);
 
     const current = Number(searchParams.get('page')) || 1;
@@ -200,6 +204,22 @@ const AgentList = () => {
             return;
         }
         setBatchTagModalVisible(true);
+    };
+
+    const handleBatchTamperConfig = () => {
+        if (selectedRowKeys.length === 0) {
+            messageApi.warning('请先选择要操作的探针');
+            return;
+        }
+        setBatchTamperModalVisible(true);
+    };
+
+    const handleBatchSSHConfig = () => {
+        if (selectedRowKeys.length === 0) {
+            messageApi.warning('请先选择要操作的探针');
+            return;
+        }
+        setBatchSSHModalVisible(true);
     };
 
     const columns: ColumnsType<Agent> = [
@@ -378,6 +398,18 @@ const AgentList = () => {
                         onClick: () => navigate(`/admin/agents/${record.id}?tab=audit`),
                     },
                     {
+                        key: 'tamper',
+                        label: '防篡改保护',
+                        icon: <FileWarning size={14}/>,
+                        onClick: () => navigate(`/admin/agents/${record.id}?tab=tamper`),
+                    },
+                    {
+                        key: 'ssh-login',
+                        label: 'SSH 登录监控',
+                        icon: <Lock size={14}/>,
+                        onClick: () => navigate(`/admin/agents/${record.id}?tab=ssh-login`),
+                    },
+                    {
                         key: 'edit',
                         label: '编辑信息',
                         icon: <Edit size={14}/>,
@@ -432,6 +464,20 @@ const AgentList = () => {
                         label: `批量操作标签${selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}`,
                         icon: <Tags size={16}/>,
                         onClick: handleBatchTags,
+                        disabled: selectedRowKeys.length === 0,
+                    },
+                    {
+                        key: 'batch-tamper',
+                        label: `批量配置防篡改保护${selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}`,
+                        icon: <FileWarning size={16}/>,
+                        onClick: handleBatchTamperConfig,
+                        disabled: selectedRowKeys.length === 0,
+                    },
+                    {
+                        key: 'batch-ssh',
+                        label: `批量配置 SSH 登录监控${selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}`,
+                        icon: <Lock size={16}/>,
+                        onClick: handleBatchSSHConfig,
                         disabled: selectedRowKeys.length === 0,
                     },
                     {
@@ -530,6 +576,26 @@ const AgentList = () => {
                 onCancel={() => setBatchTagModalVisible(false)}
                 onSuccess={() => {
                     setBatchTagModalVisible(false);
+                    setSelectedRowKeys([]);
+                }}
+            />
+
+            <BatchTamperProtectionModal
+                open={batchTamperModalVisible}
+                agentIds={selectedRowKeys as string[]}
+                onCancel={() => setBatchTamperModalVisible(false)}
+                onSuccess={() => {
+                    setBatchTamperModalVisible(false);
+                    setSelectedRowKeys([]);
+                }}
+            />
+
+            <BatchSSHLoginConfigModal
+                open={batchSSHModalVisible}
+                agentIds={selectedRowKeys as string[]}
+                onCancel={() => setBatchSSHModalVisible(false)}
+                onSuccess={() => {
+                    setBatchSSHModalVisible(false);
                     setSelectedRowKeys([]);
                 }}
             />
