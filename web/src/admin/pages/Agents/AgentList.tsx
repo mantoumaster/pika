@@ -16,10 +16,7 @@ import BatchTamperProtectionModal from './BatchTamperProtectionModal';
 import BatchSSHLoginConfigModal from './BatchSSHLoginConfigModal';
 
 interface AgentFilters {
-    name?: string;
-    hostname?: string;
-    ipv4?: string;
-    ipv6?: string;
+    keyword?: string;
     status?: string;
 }
 
@@ -37,19 +34,13 @@ const AgentList = () => {
     const [batchSSHModalVisible, setBatchSSHModalVisible] = useState(false);
     const [editingAgentId, setEditingAgentId] = useState<string | undefined>(undefined);
 
-    const current = Number(searchParams.get('page')) || 1;
+    const pageIndex = Number(searchParams.get('pageIndex')) || 1;
     const pageSize = Number(searchParams.get('pageSize')) || 10;
-    const name = searchParams.get('name') ?? '';
-    const hostname = searchParams.get('hostname') ?? '';
-    const ipv4 = searchParams.get('ipv4') ?? '';
-    const ipv6 = searchParams.get('ipv6') ?? '';
+    const keyword = searchParams.get('keyword') ?? '';
     const status = searchParams.get('status') ?? '';
 
     const filters: AgentFilters = {
-        name: name || undefined,
-        hostname: hostname || undefined,
-        ipv4: ipv4 || undefined,
-        ipv6: ipv6 || undefined,
+        keyword: keyword || undefined,
         status: status || undefined,
     };
 
@@ -69,15 +60,12 @@ const AgentList = () => {
         error: agentsErrorDetail,
         refetch,
     } = useQuery({
-        queryKey: ['admin', 'agents', current, pageSize, filters.name, filters.hostname, filters.ipv4, filters.ipv6, filters.status],
+        queryKey: ['admin', 'agents', pageIndex, pageSize, filters.keyword, filters.status],
         queryFn: async () => {
             const response = await getAgentPaging(
-                current,
+                pageIndex,
                 pageSize,
-                filters.name,
-                filters.hostname,
-                filters.ipv4,
-                filters.ipv6,
+                keyword,
                 filters.status,
             );
             return response.data;
@@ -109,45 +97,21 @@ const AgentList = () => {
 
     useEffect(() => {
         searchForm.setFieldsValue({
-            name: name || undefined,
-            hostname: hostname || undefined,
-            ipv4: ipv4 || undefined,
-            ipv6: ipv6 || undefined,
+            keyword: keyword || undefined,
             status: status || undefined,
         });
-    }, [searchForm, name, hostname, ipv4, ipv6, status]);
+    }, [searchForm, keyword, status]);
 
     const handleSearch = () => {
         const values = searchForm.getFieldsValue();
         const nextParams = new URLSearchParams(searchParams);
-        const nextName = values.name?.trim();
-        const nextHostname = values.hostname?.trim();
-        const nextIpv4 = values.ipv4?.trim();
-        const nextIpv6 = values.ipv6?.trim();
+        const nextKeyword = values.keyword?.trim();
         const nextStatus = values.status;
 
-        if (nextName) {
-            nextParams.set('name', nextName);
+        if (nextKeyword) {
+            nextParams.set('keyword', nextKeyword);
         } else {
-            nextParams.delete('name');
-        }
-
-        if (nextHostname) {
-            nextParams.set('hostname', nextHostname);
-        } else {
-            nextParams.delete('hostname');
-        }
-
-        if (nextIpv4) {
-            nextParams.set('ipv4', nextIpv4);
-        } else {
-            nextParams.delete('ipv4');
-        }
-
-        if (nextIpv6) {
-            nextParams.set('ipv6', nextIpv6);
-        } else {
-            nextParams.delete('ipv6');
+            nextParams.delete('keyword');
         }
 
         if (nextStatus) {
@@ -156,7 +120,7 @@ const AgentList = () => {
             nextParams.delete('status');
         }
 
-        nextParams.set('page', '1');
+        nextParams.set('pageIndex', '1');
         nextParams.set('pageSize', String(pageSize));
         setSearchParams(nextParams);
     };
@@ -164,12 +128,9 @@ const AgentList = () => {
     const handleReset = () => {
         searchForm.resetFields();
         const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete('name');
-        nextParams.delete('hostname');
-        nextParams.delete('ipv4');
-        nextParams.delete('ipv6');
+        nextParams.delete('keyword');
         nextParams.delete('status');
-        nextParams.set('page', '1');
+        nextParams.set('pageIndex', '1');
         nextParams.set('pageSize', String(pageSize));
         setSearchParams(nextParams);
     };
@@ -542,17 +503,8 @@ const AgentList = () => {
             <Divider/>
 
             <Form form={searchForm} layout="inline" onFinish={handleSearch}>
-                <Form.Item label="名称" name="name">
-                    <Input placeholder="请输入名称" style={{width: 180}}/>
-                </Form.Item>
-                <Form.Item label="主机名" name="hostname">
-                    <Input placeholder="请输入主机名" style={{width: 180}}/>
-                </Form.Item>
-                <Form.Item label="IPv4" name="ipv4">
-                    <Input placeholder="请输入 IPv4" style={{width: 180}}/>
-                </Form.Item>
-                <Form.Item label="IPv6" name="ipv6">
-                    <Input placeholder="请输入 IPv6" style={{width: 220}}/>
+                <Form.Item label="关键字" name="keyword">
+                    <Input placeholder="名称/主机名/通信地址/IPv4/IPv6" style={{width: 225}}/>
                 </Form.Item>
                 <Form.Item label="状态" name="status">
                     <Select
@@ -589,9 +541,9 @@ const AgentList = () => {
                     preserveSelectedRowKeys: true,
                 }}
                 pagination={{
-                    current,
-                    pageSize,
-                    total,
+                    current: pageIndex,
+                    pageSize: pageSize,
+                    total: total,
                     showSizeChanger: true,
                     showTotal: (count) => `共 ${count} 条`,
                 }}

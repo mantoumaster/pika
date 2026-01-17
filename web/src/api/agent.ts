@@ -47,26 +47,14 @@ export interface GetAgentMetricsResponse {
 export const getAgentPaging = (
     pageIndex: number = 1,
     pageSize: number = 10,
-    name?: string,
-    hostname?: string,
-    ipv4?: string,
-    ipv6?: string,
+    keyword?: string,
     status?: string,
 ) => {
     const params = new URLSearchParams();
     params.append('pageIndex', pageIndex.toString());
     params.append('pageSize', pageSize.toString());
-    if (name) {
-        params.append('name', name);
-    }
-    if (hostname) {
-        params.append('hostname', hostname);
-    }
-    if (ipv4) {
-        params.append('ipv4', ipv4);
-    }
-    if (ipv6) {
-        params.append('ipv6', ipv6);
+    if (keyword) {
+        params.append('keyword', keyword);
     }
     if (status) {
         params.append('status', status);

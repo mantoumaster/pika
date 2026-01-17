@@ -19,12 +19,7 @@ func (h *AgentHandler) Paging(c echo.Context) error {
 
 	builder := orz.NewPageBuilder(h.agentService.AgentRepo.Repository).
 		PageRequest(pr).
-		Contains("name", c.QueryParam("name")).
-		Contains("hostname", c.QueryParam("hostname")).
-		Contains("ip", c.QueryParam("ip")).
-		Contains("ipv4", c.QueryParam("ipv4")).
-		Contains("ipv6", c.QueryParam("ipv6"))
-
+		Keyword([]string{"name", "hostname", "ip", "ipv4", "ipv6"}, c.QueryParam("keyword"))
 	// 处理状态筛选
 	if status == "online" {
 		builder.Equal("status", "1")
