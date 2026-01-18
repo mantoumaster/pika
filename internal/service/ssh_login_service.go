@@ -137,18 +137,24 @@ func (s *SSHLoginService) HandleEvent(ctx context.Context, agentID string, event
 		return nil
 	}
 
+	ipLocation := ""
+	if s.geoIPSvc != nil && eventData.IP != "" {
+		ipLocation = s.geoIPSvc.LookupIP(eventData.IP)
+	}
+
 	// 保存事件到数据库
 	event := &models.SSHLoginEvent{
-		ID:        uuid.NewString(),
-		AgentID:   agentID,
-		Username:  eventData.Username,
-		IP:        eventData.IP,
-		Port:      eventData.Port,
-		Status:    eventData.Status,
-		TTY:       eventData.TTY,
-		SessionID: eventData.SessionID,
-		Timestamp: eventData.Timestamp,
-		CreatedAt: time.Now().UnixMilli(),
+		ID:         uuid.NewString(),
+		AgentID:    agentID,
+		Username:   eventData.Username,
+		IP:         eventData.IP,
+		IPLocation: ipLocation,
+		Port:       eventData.Port,
+		Status:     eventData.Status,
+		TTY:        eventData.TTY,
+		SessionID:  eventData.SessionID,
+		Timestamp:  eventData.Timestamp,
+		CreatedAt:  time.Now().UnixMilli(),
 	}
 
 	if err := s.SSHLoginEventRepo.Create(ctx, event); err != nil {
@@ -166,12 +172,12 @@ func (s *SSHLoginService) HandleEvent(ctx context.Context, agentID string, event
 		s.logger.Info("IP在白名单中，忽略事件", zap.String("agentId", agentID), zap.String("ip", eventData.IP))
 		return nil
 	}
-	s.sendLoginSuccessNotification(agentID, eventData)
+	s.sendLoginSuccessNotification(agentID, eventData, ipLocation)
 
 	return nil
 }
 
-func (s *SSHLoginService) sendLoginSuccessNotification(agentID string, eventData protocol.SSHLoginEvent) {
+func (s *SSHLoginService) sendLoginSuccessNotification(agentID string, eventData protocol.SSHLoginEvent, ipLocation string) {
 	if s.notificationSvc == nil {
 		return
 	}
@@ -199,11 +205,16 @@ func (s *SSHLoginService) sendLoginSuccessNotification(agentID string, eventData
 		sourceAddr = fmt.Sprintf("%s:%s", sourceIP, eventData.Port)
 	}
 
+	locationText := ipLocation
+	if locationText == "" {
+		locationText = "未知"
+	}
+
 	record := &models.AlertRecord{
 		AgentID:     agentID,
 		AgentName:   agent.Name,
 		AlertType:   "ssh_login",
-		Message:     fmt.Sprintf("SSH登录成功：用户 %s，来源 %s，终端 %s，会话 %s", eventData.Username, sourceAddr, eventData.TTY, eventData.SessionID),
+		Message:     fmt.Sprintf("SSH登录成功：用户 %s，来源 %s，归属地 %s，终端 %s，会话 %s", eventData.Username, sourceAddr, locationText, eventData.TTY, eventData.SessionID),
 		Threshold:   0,
 		ActualValue: 0,
 		Level:       "warning",

@@ -66,6 +66,13 @@ const SSHLoginEvents: React.FC<SSHLoginEventsProps> = ({agentId}) => {
             ),
         },
         {
+            title: '归属地',
+            dataIndex: 'ipLocation',
+            key: 'ipLocation',
+            width: 140,
+            render: (_, record) => record.ipLocation || '-',
+        },
+        {
             title: '端口',
             dataIndex: 'port',
             key: 'port',

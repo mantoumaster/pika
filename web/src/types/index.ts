@@ -549,6 +549,7 @@ export interface SSHLoginEvent {
     agentId: string;
     username: string;
     ip: string;
+    ipLocation?: string;
     port?: string;
     status: 'success' | 'failed';
     method?: string;
