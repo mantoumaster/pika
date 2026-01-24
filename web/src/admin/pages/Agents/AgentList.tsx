@@ -370,6 +370,17 @@ const AgentList = () => {
             title: '排序权重',
             dataIndex: 'weight',
             key: 'weight',
+            width: 100,
+        },
+        {
+            title: '备注',
+            dataIndex: 'remark',
+            key: 'remark',
+            width: 200,
+            ellipsis: true,
+            render: (value) => (
+                <span className="text-gray-700">{value || '-'}</span>
+            ),
         },
         {
             title: '最后活跃时间',
