@@ -2,7 +2,20 @@ import {type JSX, useEffect, useMemo, useRef, useState} from 'react';
 import {Outlet, useLocation, useNavigate} from 'react-router-dom';
 import type {MenuProps} from 'antd';
 import {App, Avatar, Button, ConfigProvider, Dropdown, Space, theme} from 'antd';
-import {Activity, AlertTriangle, BookOpen, Eye, Globe, Key, LogOut, Moon, Server, Settings, Sun, User as UserIcon} from 'lucide-react';
+import {
+    Activity,
+    AlertTriangle,
+    BookOpen,
+    Eye,
+    Globe,
+    Key,
+    LogOut,
+    Moon,
+    Server,
+    Settings,
+    Sun,
+    User as UserIcon
+} from 'lucide-react';
 import {logout} from '@/api/auth.ts';
 import type {User} from '@/types';
 import {cn} from '@/lib/utils';
@@ -116,7 +129,7 @@ const AdminLayout = () => {
                     localStorage.removeItem('token');
                     localStorage.removeItem('userInfo');
                     messageApi.success('已退出登录');
-                    navigate('/login');
+                    navigate('/');
                 }
             },
         });
@@ -307,7 +320,8 @@ const AdminLayout = () => {
                                             </span>
                                             <span className="truncate font-medium">{item.label}</span>
                                             {isActive &&
-                                                <span className="ml-auto text-[10px] uppercase text-blue-500 dark:text-blue-400">当前</span>}
+                                                <span
+                                                    className="ml-auto text-[10px] uppercase text-blue-500 dark:text-blue-400">当前</span>}
                                         </button>
                                     );
                                 })}
