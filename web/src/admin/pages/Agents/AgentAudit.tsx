@@ -76,7 +76,7 @@ const AgentAudit = ({agentId}: AgentAuditProps) => {
     if (agent && !agent.os.toLowerCase().includes('linux')) {
         return (
             <Alert
-                message="功能限制"
+                title="功能限制"
                 description="安全审计功能仅支持 Linux 系统。当前系统为 Windows 或其他系统，无法使用此功能。"
                 type="warning"
                 showIcon
@@ -87,13 +87,11 @@ const AgentAudit = ({agentId}: AgentAuditProps) => {
     // 暂无审计结果
     if (!auditResult) {
         return (
-            <Space direction="vertical" style={{width: '100%'}} size="large">
+            <Space orientation="vertical" style={{width: '100%'}} size="large">
                 <Alert
-                    message="暂无审计结果"
+                    title="暂无审计结果"
                     description={
-                        <Space direction="vertical">
-                            <span>该探针还没有进行过安全审计。点击下方按钮来执行首次审计。</span>
-                        </Space>
+                        <span>该探针还没有进行过安全审计。点击下方按钮来执行首次审计。</span>
                     }
                     type="info"
                     showIcon
@@ -115,7 +113,7 @@ const AgentAudit = ({agentId}: AgentAuditProps) => {
 
     // 显示审计结果
     return (
-        <Space direction="vertical" style={{width: '100%'}} size="large">
+        <Space orientation="vertical" style={{width: '100%'}} size="large">
             <div className="flex justify-end gap-2">
                 <Button
                     icon={<RefreshCw size={16}/>}
