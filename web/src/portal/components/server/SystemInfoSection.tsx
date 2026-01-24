@@ -64,10 +64,6 @@ export const SystemInfoSection = ({agent, latestMetrics}: SystemInfoSectionProps
             accent: 'blue',
             metrics: [
                 {label: '当前使用', value: `${formatPercentValue(latestMetrics.cpu?.usagePercent)}%`},
-                {
-                    label: '采样时间',
-                    value: latestMetrics.cpu ? formatDateTime(latestMetrics.cpu.timestamp) : '-',
-                },
             ],
         });
 
