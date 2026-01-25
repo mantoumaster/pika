@@ -67,15 +67,6 @@ export const MonitorChart = ({agentId, timeRange, start, end}: MonitorChartProps
     // 颜色配置
     const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-    // 准备移动端图例数据
-    const legendItems = useMemo(() => {
-        return monitorKeys.map((key, index) => ({
-            key,
-            label: key,
-            color: colors[index % colors.length],
-        }));
-    }, [monitorKeys]);
-
     // 如果没有数据且不是加载中，不渲染组件
     if (!isLoading && chartData.length === 0) {
         return null;

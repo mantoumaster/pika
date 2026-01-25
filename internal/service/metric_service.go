@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"time"
 
@@ -725,6 +726,10 @@ func (s *MetricService) GetMonitorAgentStats(monitorID string) []protocol.Monito
 			result = append(result, *stat)
 		}
 	}
+	// 根据响应时间排序
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ResponseTime < result[j].ResponseTime
+	})
 
 	return result
 }
