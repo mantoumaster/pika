@@ -95,4 +95,4 @@ docker-compose -f docker-compose.postgresql.yml up -d
 
 <img src="screenshots/wx1.png" width="300" height="auto"/>
 
-https://t.me/pika_monitor
+https://t.me/next_terminal
